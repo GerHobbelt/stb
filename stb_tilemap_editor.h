@@ -1,4 +1,4 @@
-// stb_tilemap_editor.h - v0.35 - Sean Barrett - http://nothings.org/stb
+// stb_tilemap_editor.h - v0.36 - Sean Barrett - http://nothings.org/stb
 // placed in the public domain - not copyrighted - first released 2014-09
 //
 // Embeddable tilemap editor for C/C++
@@ -275,6 +275,7 @@
 //   either approach allows cut&pasting between levels.)
 //
 // REVISION HISTORY
+//   0.36  minor compiler support
 //   0.35  layername button changes
 //          - layername buttons grow with the layer panel
 //          - fix stbte_create_map being declared as stbte_create
@@ -309,13 +310,13 @@
 //   Additional features:
 //      Josh Huelsman
 //   Bugfixes:
-//      [this could be you!]
+//      Ryan Whitworth
 //
 // LICENSE
 //
-//   This software has been placed in the public domain by its author.
-//   Where that dedication is not recognized, you are granted a perpetual,
-//   irrevocable license to copy and modify this file as you see fit.
+//   This software is in the public domain. Where that dedication is not
+//   recognized, you are granted a perpetual, irrevocable license to copy,
+//   distribute, and modify this file as you see fit.
 
 
 
@@ -325,6 +326,12 @@
 
 #ifndef STB_TILEMAP_INCLUDE_STB_TILEMAP_EDITOR_H
 #define STB_TILEMAP_INCLUDE_STB_TILEMAP_EDITOR_H
+
+#ifdef _WIN32
+  #define _CRT_SECURE_NO_WARNINGS
+  #include <stdlib.h>
+  #include <stdio.h>
+#endif
 
 typedef struct stbte_tilemap stbte_tilemap;
 

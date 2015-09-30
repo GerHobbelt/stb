@@ -1,4 +1,4 @@
-// stb_voxel_render.h - v0.80 - Sean Barrett, 2015 - public domain
+// stb_voxel_render.h - v0.83 - Sean Barrett, 2015 - public domain
 //
 // This library helps render large-scale "voxel" worlds for games,
 // in this case, one with blocks that can have textures and that
@@ -117,6 +117,27 @@
 //   then you wouldn't even have to change anything but the mode number.)
 //
 //
+// IMPROVEMENTS FOR SHIP-WORTHY PROGRAMS USING THIS LIBRARY
+//
+//   I currently tolerate a certain level of "bugginess" in this library.
+//
+//   I'm referring to things which look a little wrong (as long as they
+//   don't cause holes or cracks in the output meshes), or things which
+//   do not produce as optimal a mesh as possible. Notable examples:
+//
+//        -  incorrect lighting on slopes
+//        -  inefficient meshes for vheight blocks
+//
+//   I am willing to do the work to improve these things if someone is
+//   going to ship a substantial program that would be improved by them.
+//   (It need not be commercial, nor need it be a game.) I just didn't
+//   want to do the work up front if it might never be leveraged. So just
+//   submit a bug report as usual (github is preferred), but add a note
+//   that this is for a thing that is really going to ship. (That means
+//   you need to be far enough into the project that it's clear you're
+//   committed to it; not during early exploratory development.)
+//
+//
 // VOXEL MESH API
 //
 //   Context
@@ -165,10 +186,14 @@
 //   Features             Porting            Bugfixes & Warnings
 //  Sean Barrett                          github:r-leyh   Jesus Fernandez
 //                                        Miguel Lechon   github:Arbeiterunfallversicherungsgesetz
-//                                        Thomas Frase
+//                                        Thomas Frase    James Hofmann
 //
 // VERSION HISTORY
 //
+//   0.83   (2015-09-13)  remove non-constant struct initializers to support more compilers
+//   0.82   (2015-08-01)  added input.packed_compact to store rot, vheight & texlerp efficiently
+//                        fix broken tex_overlay2
+//   0.81   (2015-05-28)  fix broken STBVOX_CONFIG_OPTIMIZED_VHEIGHT
 //   0.80   (2015-04-11)  fix broken STBVOX_CONFIG_ROTATION_IN_LIGHTING refactoring
 //                        change STBVOX_MAKE_LIGHTING to STBVOX_MAKE_LIGHTING_EXT so
 //                                    that header defs don't need to see config vars
@@ -186,6 +211,13 @@
 //   stb_voxel_render   20-byte quads   2015/01
 //   zmc engine         32-byte quads   2013/12
 //   zmc engine         96-byte quads   2011/10
+//
+//
+// LICENSE
+//
+//   This software is in the public domain. Where that dedication is not
+//   recognized, you are granted a perpetual, irrevocable license to copy,
+//   distribute, and modify this file as you see fit.
 
 #ifndef INCLUDE_STB_VOXEL_RENDER_H
 #define INCLUDE_STB_VOXEL_RENDER_H
@@ -959,6 +991,19 @@ struct stbvox_input_description
    // Indexed by 3D coordinates, this defines the four
    // vheight values to use if the geometry is STBVOX_GEOM_vheight*.
    // See the vheight discussion.
+
+   unsigned char *packed_compact;
+   // Stores block rotation, vheight, and texlerp values:
+   //    block rotation: 2 bits
+   //    vertex vheight: 2 bits
+   //    use_texlerp   : 1 bit
+   //    vertex texlerp: 3 bits
+   // If STBVOX_CONFIG_UP_TEXLERP_PACKED is defined, then 'vertex texlerp' is
+   // used for up faces if use_texlerp is 1. If STBVOX_CONFIG_DOWN_TEXLERP_PACKED
+   // is defined, then 'vertex texlerp' is used for down faces if use_texlerp is 1.
+   // Note if those symbols are defined but packed_compact is NULL, the normal
+   // texlerp default will be used.
+   // Encode with STBVOX_MAKE_PACKED_COMPACT(rot, vheight, texlerp, use_texlerp)
 };
 // @OPTIMIZE allow specializing; build a single struct with all of the
 // 3D-indexed arrays combined so it's AoS instead of SoA for better
@@ -969,6 +1014,17 @@ struct stbvox_input_description
 //
 //  VHEIGHT DOCUMENTATION
 //
+//  "vheight" is the internal name for the special block types
+//  with sloped tops or bottoms. "vheight" stands for "vertex height".
+//
+//  Note that these blocks are very flexible (there are 256 of them,
+//  although at least 17 of them should never be used), but they
+//  also have a disadvantage that they generate extra invisible
+//  faces; the generator does not currently detect whether adjacent
+//  vheight blocks hide each others sides, so those side faces are
+//  always generated. For a continuous ground terrain, this means
+//  that you may generate 5x as many quads as needed. See notes
+//  on "improvements for shipping products" in the introduction.
 
 enum
 {
@@ -989,9 +1045,9 @@ enum
 // 1/2, 2/2, or 3/2. 0 is the bottom of the block, 1 is halfway
 // up the block, 2 is the top of the block, and 3 is halfway up the
 // next block (and actually outside of the block). The value 3 is
-// actually legal, and allows you to:
+// actually legal for floor vheight (but not ceiling), and allows you to:
 //
-//     (A) allows smoother terrain by having slopes that cross blocks,
+//     (A) have smoother terrain by having slopes that cross blocks,
 //         e.g. (1,1,3,3) is a regular-seeming slope halfway between blocks
 //     (B) make slopes steeper than 45-degrees, e.g. (0,0,3,3)
 //
@@ -1103,6 +1159,7 @@ enum
 #define STBVOX_MAKE_COLOR(color,t1,t2) ((color)+(t1)*64+(t2)*128)
 #define STBVOX_MAKE_TEXLERP_VERT3(e,n,w,s,u)   ((e)+(n)*8+(w)*64+(s)*512+(u)*4096)
 #define STBVOX_MAKE_TEXLERP_FACE3(e,n,w,s,u,d) ((e)+(n)*8+(w)*64+(s)*512+(u)*4096+(d)*16384)
+#define STBVOX_MAKE_PACKED_COMPACT(rot, vheight, texlerp, def) ((rot)+4*(vheight)+16*(use)+32*(texlerp))
 
 #define STBVOX_MAKE_LIGHTING_EXT(lighting, rot)  (((lighting)&~3)+(rot))
 #define STBVOX_MAKE_LIGHTING(lighting)       (lighting)
@@ -2036,7 +2093,7 @@ stbvox_mesh_face stbvox_compute_mesh_face_value(stbvox_mesh_maker *mm, stbvox_ro
                face_data.tex1 = rep1;
          }
          if (mm->input.overlay_tex2) {
-            unsigned char rep2 = mm->input.overlay_tex1[over][over_face];
+            unsigned char rep2 = mm->input.overlay_tex2[over][over_face];
             if (rep2)
                face_data.tex2 = rep2;
          }
@@ -2256,10 +2313,10 @@ static unsigned char stbvox_hasface[STBVOX_MAX_GEOM][STBVOX_NUM_ROTATION] =
    { 31,31,31,31 }, // wall-projected diagonal with up face
    { 63,63,63,63 }, // crossed-pair has special handling, but avoid early-out
    { 63,63,63,63 }, // force
-   { 63,63,63,63 },
-   { 63,63,63,63 },
-   { 63,63,63,63 },
-   { 63,63,63,63 },
+   { 63,63,63,63 }, // vheight
+   { 63,63,63,63 }, // vheight
+   { 63,63,63,63 }, // vheight
+   { 63,63,63,63 }, // vheight
 };
 
 // this determines which face type above is visible on each side of the geometry
@@ -2619,6 +2676,30 @@ void stbvox_make_mesh_for_face(stbvox_mesh_maker *mm, stbvox_rotate rot, int fac
    // first compute texlerp into p1
    stbvox_mesh_vertex p1[4] = { 0 };
 
+   #if defined(STBVOX_CONFIG_DOWN_TEXLERP_PACKED) && defined(STBVOX_CONFIG_UP_TEXLERP_PACKED)
+      #define STBVOX_USE_PACKED(f) ((f) == STBVOX_FACE_up || (f) == STBVOX_FACE_down)
+   #elif defined(STBVOX_CONFIG_UP_TEXLERP_PACKED)
+      #define STBVOX_USE_PACKED(f) ((f) == STBVOX_FACE_up                           )
+   #elif defined(STBVOX_CONFIG_DOWN_TEXLERP_PACKED)
+      #define STBVOX_USE_PACKED(f) (                         (f) == STBVOX_FACE_down)
+   #endif
+
+   #if defined(STBVOX_CONFIG_DOWN_TEXLERP_PACKED) || defined(STBVOX_CONFIG_UP_TEXLERP_PACKED)
+   if (STBVOX_USE_PACKED(face)) {
+      if (!mm->input.packed_compact || 0==(mm->input.packed_compact[v_off]&16))
+         goto set_default;
+      p1[0] = (mm->input.packed_compact[v_off + mm->cube_vertex_offset[face][0]] >> 5);
+      p1[1] = (mm->input.packed_compact[v_off + mm->cube_vertex_offset[face][1]] >> 5);
+      p1[2] = (mm->input.packed_compact[v_off + mm->cube_vertex_offset[face][2]] >> 5);
+      p1[3] = (mm->input.packed_compact[v_off + mm->cube_vertex_offset[face][3]] >> 5);
+      p1[0] = stbvox_vertex_encode(0,0,0,0,p1[0]);
+      p1[1] = stbvox_vertex_encode(0,0,0,0,p1[1]);
+      p1[2] = stbvox_vertex_encode(0,0,0,0,p1[2]);
+      p1[3] = stbvox_vertex_encode(0,0,0,0,p1[3]);
+      goto skip;
+   }
+   #endif
+
    if (mm->input.block_texlerp) {
       stbvox_block_type bt = mm->input.blocktype[v_off];
       unsigned char val = mm->input.block_texlerp[bt];
@@ -2672,9 +2753,17 @@ void stbvox_make_mesh_for_face(stbvox_mesh_maker *mm, stbvox_rotate rot, int fac
          p1[0] = p1[1] = p1[2] = p1[3] = stbvox_vertex_encode(0,0,0,0,stbvox_vert_lerp_for_face_lerp[facelerp]);
       }
    } else {
-      p1[0] = p1[1] = p1[2] = p1[3] = stbvox_vertex_encode(0,0,0,0,7);
+      #if defined(STBVOX_CONFIG_UP_TEXLERP_PACKED) || defined(STBVOX_CONFIG_DOWN_TEXLERP_PACKED)
+      set_default:
+      #endif
+      p1[0] = p1[1] = p1[2] = p1[3] = stbvox_vertex_encode(0,0,0,0,7); // @TODO make this configurable
    }
 
+   #if defined(STBVOX_CONFIG_UP_TEXLERP_PACKED) || defined(STBVOX_CONFIG_DOWN_TEXLERP_PACKED)
+   skip:
+   #endif
+
+   // now compute lighting and store to vertices
    {
       stbvox_mesh_vertex *mv[4];
       stbvox_get_quad_vertex_pointer(mm, mesh, mv, face_data);
@@ -2734,7 +2823,6 @@ void stbvox_make_mesh_for_face(stbvox_mesh_maker *mm, stbvox_rotate rot, int fac
    }
 }
 
-#ifndef STBVOX_CONFIG_OPTIMIZED_VHEIGHT
 // get opposite-facing normal & texgen for opposite face, used to map up-facing vheight data to down-facing data
 static unsigned char stbvox_reverse_face[STBVF_count] =
 {
@@ -2744,7 +2832,7 @@ static unsigned char stbvox_reverse_face[STBVF_count] =
          0,       0,       0,       0, STBVF_ne_d, STBVF_ne_d, STBVF_nd, STBVF_nu
 };
 
-
+#ifndef STBVOX_CONFIG_OPTIMIZED_VHEIGHT
 // render non-planar quads by splitting into two triangles, rendering each as a degenerate quad
 static void stbvox_make_12_split_mesh_for_face(stbvox_mesh_maker *mm, stbvox_rotate rot, int face, int v_off, stbvox_pos pos, stbvox_mesh_vertex vertbase, stbvox_mesh_vertex *face_coord, unsigned char mesh, unsigned char *ht)
 {
@@ -2823,6 +2911,9 @@ static void stbvox_make_mesh_for_block(stbvox_mesh_maker *mm, stbvox_pos pos, in
    simple_rot = mm->input.lighting[v_off] & 3;
    #endif
 
+   if (mm->input.packed_compact)
+      simple_rot = mm->input.packed_compact[v_off] & 3;
+
    if (blockptr[ 1]==0) {
       rot.facerot = simple_rot;
       stbvox_make_mesh_for_face(mm, rot, STBVOX_FACE_up  , v_off, pos, basevert, vmesh+4*STBVOX_FACE_up, mesh, STBVOX_FACE_up);
@@ -2853,9 +2944,6 @@ static void stbvox_make_mesh_for_block(stbvox_mesh_maker *mm, stbvox_pos pos, in
       stbvox_make_mesh_for_face(mm, rot, STBVOX_FACE_west , v_off, pos, basevert, vmesh+4*STBVOX_FACE_west, mesh, STBVOX_FACE_west);
 }
 
-
-// void stbvox_make_mesh_for_block_with_geo(stbvox_mesh_maker *mm, stbvox_pos pos, int v_off)
-//
 // complex case for mesh generation: we have lots of different
 // block types, and we don't want to generate faces of blocks
 // if they're hidden by neighbors.
@@ -2864,8 +2952,6 @@ static void stbvox_make_mesh_for_block(stbvox_mesh_maker *mm, stbvox_pos pos, in
 // which tells us what face type is generated for each type of
 // geometry, and then a table that tells us whether that type
 // is hidden by a neighbor.
-
-
 static void stbvox_make_mesh_for_block_with_geo(stbvox_mesh_maker *mm, stbvox_pos pos, int v_off)
 {
    int ns_off = mm->y_stride_in_bytes;
@@ -2896,15 +2982,12 @@ static void stbvox_make_mesh_for_block_with_geo(stbvox_mesh_maker *mm, stbvox_po
       ngeo[4] = mm->input.geometry[v_off +      1];
       ngeo[5] = mm->input.geometry[v_off -      1];
 
-      #ifndef STBVOX_CONFIG_ROTATION_IN_LIGHTING
       rot = (geo >> 4) & 3;
       geo &= 15;
       for (i=0; i < 6; ++i) {
          nrot[i] = (ngeo[i] >> 4) & 3;
          ngeo[i] &= 15;
       }
-      #endif
-      STBVOX_NOTUSED(i);
    } else {
       int i;
       assert(mm->input.block_geometry);
@@ -2913,27 +2996,41 @@ static void stbvox_make_mesh_for_block_with_geo(stbvox_mesh_maker *mm, stbvox_po
          ngeo[i] = mm->input.block_geometry[nbt[i]];
       if (mm->input.selector) {
          #ifndef STBVOX_CONFIG_ROTATION_IN_LIGHTING
-         rot     = (mm->input.selector[v_off         ] >> 4) & 3;
-         nrot[0] = (mm->input.selector[v_off + ew_off] >> 4) & 3;
-         nrot[1] = (mm->input.selector[v_off + ns_off] >> 4) & 3;
-         nrot[2] = (mm->input.selector[v_off - ew_off] >> 4) & 3;
-         nrot[3] = (mm->input.selector[v_off - ns_off] >> 4) & 3;
-         nrot[4] = (mm->input.selector[v_off +      1] >> 4) & 3;
-         nrot[5] = (mm->input.selector[v_off -      1] >> 4) & 3;
+         if (mm->input.packed_compact == NULL) {
+            rot     = (mm->input.selector[v_off         ] >> 4) & 3;
+            nrot[0] = (mm->input.selector[v_off + ew_off] >> 4) & 3;
+            nrot[1] = (mm->input.selector[v_off + ns_off] >> 4) & 3;
+            nrot[2] = (mm->input.selector[v_off - ew_off] >> 4) & 3;
+            nrot[3] = (mm->input.selector[v_off - ns_off] >> 4) & 3;
+            nrot[4] = (mm->input.selector[v_off +      1] >> 4) & 3;
+            nrot[5] = (mm->input.selector[v_off -      1] >> 4) & 3;
+         }
          #endif
       } else {
          #ifndef STBVOX_CONFIG_ROTATION_IN_LIGHTING
-         rot = (geo>>4)&3;
-         geo &= 15;
-         for (i=0; i < 6; ++i) {
-            nrot[i] = (ngeo[i]>>4)&3;
-            ngeo[i] &= 15;
+         if (mm->input.packed_compact == NULL) {
+            rot = (geo>>4)&3;
+            geo &= 15;
+            for (i=0; i < 6; ++i) {
+               nrot[i] = (ngeo[i]>>4)&3;
+               ngeo[i] &= 15;
+            }
          }
          #endif
       }
    }
 
-   #ifdef STBVOX_CONFIG_ROTATION_IN_LIGHTING
+   #ifndef STBVOX_CONFIG_ROTATION_IN_LIGHTING
+   if (mm->input.packed_compact) {
+      rot = mm->input.packed_compact[rot] & 3;
+      nrot[0] = mm->input.packed_compact[v_off + ew_off] & 3;
+      nrot[1] = mm->input.packed_compact[v_off + ns_off] & 3;
+      nrot[2] = mm->input.packed_compact[v_off - ew_off] & 3;
+      nrot[3] = mm->input.packed_compact[v_off - ns_off] & 3;
+      nrot[4] = mm->input.packed_compact[v_off +      1] & 3;
+      nrot[5] = mm->input.packed_compact[v_off -      1] & 3;
+   }
+   #else
    rot = mm->input.lighting[v_off] & 3;
    nrot[0] = (mm->input.lighting[v_off + ew_off]) & 3;
    nrot[1] = (mm->input.lighting[v_off + ns_off]) & 3;
@@ -3122,6 +3219,11 @@ static void stbvox_make_mesh_for_block_with_geo(stbvox_mesh_maker *mm, stbvox_po
 
          for (i=0; i < 4; ++i)
             ht[i] = raw[stbvox_rotate_vertex[i][rot]];
+      } else if (mm->input.packed_compact) {
+         ht[0] = (mm->input.packed_compact[v_off              ] >> 2) & 3;
+         ht[1] = (mm->input.packed_compact[v_off+ew_off       ] >> 2) & 3;
+         ht[2] = (mm->input.packed_compact[v_off       +ns_off] >> 2) & 3;
+         ht[3] = (mm->input.packed_compact[v_off+ew_off+ns_off] >> 2) & 3;
       } else if (mm->input.geometry) {
          ht[0] = mm->input.geometry[v_off              ] >> 6;
          ht[1] = mm->input.geometry[v_off+ew_off       ] >> 6;
@@ -3281,17 +3383,21 @@ static void stbvox_make_mesh_for_block_with_geo(stbvox_mesh_maker *mm, stbvox_po
 
 static void stbvox_make_mesh_for_column(stbvox_mesh_maker *mm, int x, int y, int z0)
 {
-   stbvox_pos pos = { x,y,0 };
+   stbvox_pos pos;
    int v_off = x * mm->x_stride_in_bytes + y * mm->y_stride_in_bytes;
    int ns_off = mm->y_stride_in_bytes;
    int ew_off = mm->x_stride_in_bytes;
+   pos.x = x;
+   pos.y = y;
+   pos.z = 0;
    if (mm->input.geometry) {
       unsigned char *bt  = mm->input.blocktype + v_off;
       unsigned char *geo = mm->input.geometry + v_off;
       int z;
       for (z=z0; z < mm->z1; ++z) {
          if (bt[z] && ( !bt[z+ns_off] || !STBVOX_GET_GEO(geo[z+ns_off]) || !bt[z-ns_off] || !STBVOX_GET_GEO(geo[z-ns_off])
-                      || !bt[z+ew_off] || !STBVOX_GET_GEO(geo[z+ew_off]) || !bt[z-ew_off] || !STBVOX_GET_GEO(geo[z-ew_off])))
+                      || !bt[z+ew_off] || !STBVOX_GET_GEO(geo[z+ew_off]) || !bt[z-ew_off] || !STBVOX_GET_GEO(geo[z-ew_off])
+                      || !bt[z-1] || !STBVOX_GET_GEO(geo[z-1]) || !bt[z+1] || !STBVOX_GET_GEO(geo[z+1])))
          {  // TODO check up and down
             pos.z = z;
             stbvox_make_mesh_for_block_with_geo(mm, pos, v_off+z);
@@ -3586,7 +3692,7 @@ int main(int argc, char **argv)
 //   - test API for texture rotation on side faces
 //   - API for texture rotation on top & bottom
 //   - better culling of vheight faces with vheight neighbors
-//   - better culling of non-vheight faces with fheight neighbors
+//   - better culling of non-vheight faces with vheight neighbors
 //   - gather vertex lighting from slopes correctly
 //   - better support texture edge_clamp: currently if you fall
 //     exactly on 1.0 you get wrapped incorrectly; this is rare, but

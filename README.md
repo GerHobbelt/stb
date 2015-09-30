@@ -3,31 +3,31 @@
 stb
 ===
 
-single-file public domain libraries for C/C++
+single-file public domain libraries for C/C++ <a name="stb_libs"></a>
 
 library    | lastest version | category | LoC | description
 --------------------- | ---- | -------- | --- | --------------------------------
-**stb_vorbis.c** | 1.05 | audio | 5445 | decode ogg vorbis files from file/memory to float/16-bit signed output
-**stb_image.h** | 2.05 | graphics | 6433 | image loading/decoding from file/memory: JPG, PNG, TGA, BMP, PSD, GIF, HDR, PIC
-**stb_truetype.h** | 1.05 | graphics | 2632 | parse, decode, and rasterize characters from truetype fonts
-**stb_image_write.h** | 0.98 | graphics | 730 | image writing to disk: PNG, TGA, BMP
-**stb_image_resize.h** | 0.90 | graphics | 2585 | resize images larger/smaller with good quality
-**stb_rect_pack.h** | 0.06 | graphics | 560 | simple 2D rectangle packer with decent quality
-**stretchy_buffer.h** | 1.02 | utility | 210 | typesafe dynamic array for C (i.e. approximation to vector<>), doesn't compile as C++
-**stb_textedit.h** | 1.6 | UI | 1290 | guts of a text editor for games etc implementing them from scratch
-**stb_voxel_render.h** | 0.80 | 3D&nbsp;graphics | 3644 | Minecraft-esque voxel rendering "engine" with many more features
-**stb_dxt.h** | 1.04 | 3D&nbsp;graphics | 624 | Fabian "ryg" Giesen's real-time DXT compressor
-**stb_perlin.h** | 0.2 | 3D&nbsp;graphics | 175 | revised Perlin noise (3D input, 1D output)
-**stb_easy_font.h** | 0.5 | 3D&nbsp;graphics | 220 | quick-and-dirty easy-to-deploy bitmap font for printing frame rate, etc
-**stb_tilemap_editor.h** | 0.35 | game&nbsp;dev | 4120 | embeddable tilemap editor
-**stb_herringbone_wa...** | 0.6 | game&nbsp;dev | 1217 | herringbone Wang tile map generator
-**stb_c_lexer.h** | 0.06 | parsing | 809 | simplify writing parsers for C-like languages
-**stb_divide.h** | 0.91 | math | 373 | more useful 32-bit modulus e.g. "euclidean divide"
-**stb.h** | 2.24 | misc | 14086 | helper functions for C, mostly redundant in C++; basically author's personal stuff
-**stb_leakcheck.h** | 0.2 | misc | 117 | quick-and-dirty malloc/free leak-checking
+**stb_vorbis.c** | 1.06 | audio | 5441 | decode ogg vorbis files from file/memory to float/16-bit signed output
+**stb_image.h** | 2.08 | graphics | 6509 | image loading/decoding from file/memory: JPG, PNG, TGA, BMP, PSD, GIF, HDR, PIC
+**stb_truetype.h** | 1.08 | graphics | 3235 | parse, decode, and rasterize characters from truetype fonts
+**stb_image_write.h** | 1.00 | graphics | 993 | image writing to disk: PNG, TGA, BMP
+**stb_image_resize.h** | 0.90 | graphics | 2586 | resize images larger/smaller with good quality
+**stb_rect_pack.h** | 0.08 | graphics | 572 | simple 2D rectangle packer with decent quality
+**stretchy_buffer.h** | 1.02 | utility | 216 | typesafe dynamic array for C (i.e. approximation to vector<>), doesn't compile as C++
+**stb_textedit.h** | 1.7 | user&nbsp;interface | 1301 | guts of a text editor for games etc implementing them from scratch
+**stb_voxel_render.h** | 0.83 | 3D&nbsp;graphics | 3750 | Minecraft-esque voxel rendering "engine" with many more features
+**stb_dxt.h** | 1.04 | 3D&nbsp;graphics | 630 | Fabian "ryg" Giesen's real-time DXT compressor
+**stb_perlin.h** | 0.2 | 3D&nbsp;graphics | 182 | revised Perlin noise (3D input, 1D output)
+**stb_easy_font.h** | 0.6 | 3D&nbsp;graphics | 232 | quick-and-dirty easy-to-deploy bitmap font for printing frame rate, etc
+**stb_tilemap_editor.h** | 0.36 | game&nbsp;dev | 4127 | embeddable tilemap editor
+**stb_herringbone_wa...** | 0.6 | game&nbsp;dev | 1220 | herringbone Wang tile map generator
+**stb_c_lexer.h** | 0.06 | parsing | 815 | simplify writing parsers for C-like languages
+**stb_divide.h** | 0.91 | math | 379 | more useful 32-bit modulus e.g. "euclidean divide"
+**stb.h** | 2.25 | misc | 14136 | helper functions for C, mostly redundant in C++; basically author's personal stuff
+**stb_leakcheck.h** | 0.2 | misc | 124 | quick-and-dirty malloc/free leak-checking
 
 Total libraries: 18  
-Total lines of C code: 45270
+Total lines of C code: 46448
 
 
 FAQ
@@ -39,17 +39,25 @@ These libraries are in the public domain (or the equivalent where that is not
 possible). You can do anything you want with them. You have no legal obligation
 to do anything else, although I appreciate attribution.
 
+#### <a name="other_libs"></a> Are there other single-file public-domain/open source libraries with minimal dependencies out there?
+
+[Yes.](https://github.com/nothings/stb/blob/master/docs/other_libs.md)
+
 #### If I wrap an stb library in a new library, does the new library have to be public domain?
 
 No.
 
-#### A lot of these libraries seem redundant to existing open source libraries. Are they better somehow?
+#### Some of these libraries seem redundant to existing open source libraries. Are they better somehow?
 
 Generally they're only better in that they're easier to integrate,
 easier to use, and easier to release (single file; good API; no
 attribution requirement). They may be less featureful, slower,
 and/or use more memory. If you're already using an equivalent
 library, there's probably no good reason to switch.
+
+###### Can I link directly to the table of stb libraries?
+
+You can use [this URL](https://github.com/nothings/stb#stb_libs) to link directly to that list.
 
 #### Why do you list "lines of code"? It's a terrible metric.
 
@@ -88,7 +96,7 @@ remember to attach *two* files, etc.
 #### Why "stb"? Is this something to do with Set-Top Boxes?
 
 No, they are just the initials for my name, Sean T. Barrett.
-This was not chosen out of egomania, but as a semi-robust
+This was not chosen out of egomania, but as a moderately sane
 way of namespacing the filenames and source function names.
 
 #### Will you add more image types to stb_image.c?
@@ -98,10 +106,6 @@ is less for applications like image viewer apps (which need to support
 every type of image under the sun) and more for things like games which
 can choose what images to use, so I may decline to add them if they're
 too rare or if the size of implementation vs. apparent benefit is too low.
-
-#### Are there other single-file public-domain libraries out there?
-
-Yes. I'll put a list here when people remind me what they are.
 
 #### Do you have any advice on how to create my own single-file library?
 
