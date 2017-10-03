@@ -940,6 +940,7 @@ static void *make_block_array(void *mem, int count, int size)
    int i;
    void ** p = (void **) mem;
    char *q = (char *) (p + count);
+   assert(count > 0); // not great, revisit
    for (i=0; i < count; ++i) {
       p[i] = q;
       q += size;
@@ -4642,7 +4643,7 @@ static uint32 vorbis_find_page(stb_vorbis *f, uint32 *end, uint32 *last)
 
 static int get_seek_page_info(stb_vorbis *f, ProbedPage *z)
 {
-   uint8 header[27], lacing[255];
+   uint8 header[27] = {0}, lacing[255] = {0};
    int i,len;
 
    // record where the page starts
