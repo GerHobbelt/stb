@@ -7012,6 +7012,10 @@ static void *stbi__load_gif_main(stbi__context *s, int **delays, int *x, int *y,
             stride = g.w * g.h * 4;
 
             if (out) {
+               if (stride == 0) {
+                  void *ret = stbi__load_gif_main_outofmem(&g, out, delays);
+                  return ret;
+               }
                if (!stbi__mul2sizes_valid(layers, stride)) {
                   void *ret = stbi__load_gif_main_outofmem(&g, out, delays);
                   return ret;
