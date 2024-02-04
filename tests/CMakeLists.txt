@@ -2,7 +2,7 @@
 # The STB_FUZZER_SANITIZERS variable can be set to enable various sanitizers;
 # for instance, to enable Undefined Behavior Sanitizer and Address Sanitizer on
 # clang, use
-# _build> cmake .. -DSTB_FUZZER_SANITIZERS="-fsanitize=undefined,address"
+# _build> CC=clang CXX=clang++ cmake .. -DSTB_FUZZER_SANITIZERS="-fsanitize=undefined,address"
 
 cmake_minimum_required(VERSION 3.13)
 
@@ -158,14 +158,21 @@ file(COPY vorbis
      FILES_MATCHING PATTERN **.ogg)
 
 # Executables:
+macro(add_sanitizers TARGET_NAME)
+  target_compile_options(${TARGET_NAME} PRIVATE ${_STB_SANITIZERS_ALL})
+  if(NOT MSVC)
+    target_link_options(${TARGET_NAME} PRIVATE ${_STB_SANITIZERS_ALL})
+  endif()
+endmacro()
+
 add_executable(stb_c_lexer_test_fuzz stb_c_lexer_fuzzer.cpp)
-target_compile_options(stb_c_lexer_test_fuzz PRIVATE ${_STB_SANITIZERS_ALL})
+add_sanitizers(stb_c_lexer_test_fuzz)
 set_target_properties(stb_c_lexer_test_fuzz PROPERTIES VS_DEBUGGER_COMMAND_ARGUMENTS ${CMAKE_BINARY_DIR}/CORPUS_C_LEXER)
 
 add_executable(stb_image_test_fuzz stbi_read_fuzzer.c)
-target_compile_options(stb_image_test_fuzz PRIVATE ${_STB_SANITIZERS_ALL})
+add_sanitizers(stb_image_test_fuzz)
 set_target_properties(stb_image_test_fuzz PROPERTIES VS_DEBUGGER_COMMAND_ARGUMENTS --dict ${CMAKE_CURRENT_LIST_DIR}/stb_png.dict ${CMAKE_BINARY_DIR}/CORPUS_IMAGE)
 
 add_executable(stb_vorbis_test_fuzz vorbis/vorbis_test_fuzzer.c)
-target_compile_options(stb_vorbis_test_fuzz PRIVATE ${_STB_SANITIZERS_ALL})
+add_sanitizers(stb_vorbis_test_fuzz)
 set_target_properties(stb_vorbis_test_fuzz PROPERTIES VS_DEBUGGER_COMMAND_ARGUMENTS ${CMAKE_BINARY_DIR}/CORPUS_VORBIS)
