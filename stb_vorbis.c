@@ -3787,7 +3787,7 @@ static int start_decoder(vorb *f)
                lengths[j] = get_bits(f, 5) + 1;
                ++total;
                if (lengths[j] == 32) {
-                   if (c->sparse) setup_temp_free(f, lengths, c->entries);
+                   if (c->sparse) setup_temp_free(f, f->temp_lengths, c->entries);
                    return error(f, VORBIS_invalid_setup);
                }
             } else {
@@ -3803,7 +3803,7 @@ static int start_decoder(vorb *f)
 
          c->codeword_lengths = (uint8 *) setup_malloc(f, c->entries);
          if (c->codeword_lengths == NULL) {
-             setup_temp_free(f, lengths, c->entries);
+             setup_temp_free(f, &f->temp_lengths, c->entries);
              return error(f, VORBIS_outofmem);
          }
          memcpy(c->codeword_lengths, lengths, c->entries);
@@ -3836,19 +3836,19 @@ static int start_decoder(vorb *f)
          if (c->sorted_entries) {
             c->codeword_lengths = (uint8 *) setup_malloc(f, c->sorted_entries);
             if (!c->codeword_lengths) {
-                setup_temp_free(f, lengths, c->entries);
+                setup_temp_free(f, &f->temp_lengths, c->entries);
                 return error(f, VORBIS_outofmem);
             }
             c->codewords = (uint32 *) setup_temp_malloc(f, sizeof(*c->codewords) * c->sorted_entries);
             f->temp_codewords = c->codewords;
             if (!c->codewords) {
-                setup_temp_free(f, lengths, c->entries);
+                setup_temp_free(f, &f->temp_lengths, c->entries);
                 return error(f, VORBIS_outofmem);
             }
             values = (uint32 *) setup_temp_malloc(f, sizeof(*values) * c->sorted_entries);
             f->temp_values = values;
             if (!values) {
-                setup_temp_free(f, lengths, c->entries);
+                setup_temp_free(f, &f->temp_lengths, c->entries);
                 return error(f, VORBIS_outofmem);
             }
          }
@@ -3865,14 +3865,14 @@ static int start_decoder(vorb *f)
          // allocate an extra slot for sentinels
          c->sorted_codewords = (uint32 *) setup_malloc(f, sizeof(*c->sorted_codewords) * (c->sorted_entries+1));
          if (c->sorted_codewords == NULL) {
-             if (c->sparse) setup_temp_free(f, lengths, c->entries);
+             if (c->sparse) setup_temp_free(f, &f->temp_lengths, c->entries);
              return error(f, VORBIS_outofmem);
          }
          // allocate an extra slot at the front so that c->sorted_values[-1] is defined
          // so that we can catch that case without an extra if
          c->sorted_values    = ( int   *) setup_malloc(f, sizeof(*c->sorted_values   ) * (c->sorted_entries+1));
          if (c->sorted_values == NULL) {
-             if (c->sparse) setup_temp_free(f, lengths, c->entries);
+             if (c->sparse) setup_temp_free(f, &f->temp_lengths, c->entries);
              return error(f, VORBIS_outofmem);
          }
          ++c->sorted_values;
