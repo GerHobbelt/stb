@@ -1,0 +1,118 @@
+cmake_minimum_required(VERSION 3.13)
+
+project(stb_tests)
+include_directories(${CMAKE_CURRENT_LIST_DIR}/..)
+
+# Turn on multiprocess compilation by default on MSVC
+if(MSVC)
+  add_compile_options(/MP)
+endif()
+
+# Download files for testing that aren't included in the repository, to the
+# CMake build directory
+file(DOWNLOAD "https://nothings.org/stb_vorbis/samples/sketch008.ogg" ${CMAKE_BINARY_DIR}/sketch008.ogg)
+
+# Currently using add_executable for tests which can be run, add_library for
+# tests that don't have main() functions
+add_executable(stb_c_lexer_test c_lexer_test.c)
+set_target_properties(stb_c_lexer_test PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/..) # Since it parses itself
+add_executable(stb_c_lexer_fuzz stb_c_lexer_fuzzer.cpp)
+
+add_executable(stb_connected_components_test grid_reachability.c test_c_compilation.c)
+target_compile_definitions(stb_connected_components_test PRIVATE GRID_TEST STB_DEFINE)
+target_include_directories(stb_connected_components_test PRIVATE ../deprecated)
+set_target_properties(stb_connected_components_test PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/..) # Since it loads data/map_03.png
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/output/stbcc)
+
+add_executable(stb_herringbone_generator herringbone_generator.c)
+set_target_properties(stb_herringbone_generator PROPERTIES VS_DEBUGGER_COMMAND_ARGUMENTS "${CMAKE_CURRENT_LIST_DIR}/output/herringbone/tileset.png e 12 1 1 1 1 1 1 4 4")
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/output/herringbone)
+add_executable(stb_herringbone_map herringbone_map.c)
+set_target_properties(stb_herringbone_map PROPERTIES VS_DEBUGGER_COMMAND_ARGUMENTS "${CMAKE_CURRENT_LIST_DIR}/../data/herringbone/template_rooms_limit_connectivity.png 128 128 ${CMAKE_CURRENT_LIST_DIR}/output/herringbone/map.png")
+
+add_executable(stb_image_test image_test.c image_write_test.c)
+target_compile_definitions(stb_image_test PRIVATE PNGSUITE_PRIMARY)
+target_include_directories(stb_image_test PRIVATE ../deprecated)
+set_target_properties(stb_image_test PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}) # Since it reads pngsuite/primary
+add_library(stb_image_test_compilation test_image.c)
+add_executable(stb_image_test_fuzz stbi_read_fuzzer.c)
+add_library(stb_image_write_test_compilation test_image_write.c)
+set_target_properties(stb_image_test PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}) # Since it writes to output/
+
+add_executable(stb_resample_test resample_test.cpp)
+add_executable(stb_resample_test_c resample_test_c.c)
+target_include_directories(stb_resample_test_c PRIVATE ../deprecated)
+
+# These fail on 64-bit systems, because stb_regex expects that pointers are 32-bit
+# add_executable(stb_test stb.c)
+# target_include_directories(stb_test PRIVATE ../deprecated)
+# target_compile_definitions(stb_test PRIVATE MAIN_TEST STB_PERFECT_HASH)
+# add_executable(stb_test_cpp stb_cpp.cpp)
+# target_include_directories(stb_test_cpp PRIVATE ../deprecated)
+
+add_library(stb_static stb_static.c)
+
+add_executable(stb_lib_test stblib_test.c)
+add_library(stb_lib_test_companion stblib_test_companion.c)
+
+add_library(stb_test_c_compilation test_c_compilation.c)
+add_library(stb_test_cpp_compilation test_cpp_compilation.cpp)
+
+add_executable(stb_ds_test test_ds.c)
+target_compile_definitions(stb_ds_test PRIVATE DS_TEST)
+add_executable(stb_ds_test_cpp test_ds_cpp.cpp)
+target_compile_definitions(stb_ds_test_cpp PRIVATE DS_TEST)
+
+add_library(stb_dxt_test test_dxt.c)
+
+add_library(stb_easyfont_test test_easyfont.c)
+
+add_library(stb_perlin_test test_perlin.c)
+
+add_executable(stb_png_paeth_test test_png_paeth.c)
+add_executable(stb_png_regress_test test_png_regress.c)
+set_target_properties(stb_png_regress_test PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}) # Since it reads and writes pngsuite/
+
+add_executable(stb_siphash_test test_siphash.c)
+add_executable(stb_sprintf_test test_sprintf.c)
+target_compile_definitions(stb_sprintf_test PRIVATE TEST_SPRINTF STB_SPRINTF_IMPLEMENTATION)
+
+add_executable(stb_truetype_test test_truetype.c test_c_compilation.c)
+target_compile_definitions(stb_truetype_test PRIVATE TT_TEST)
+add_executable(stb_vorbis_test test_vorbis.c ../stb_vorbis.c)
+target_include_directories(stb_vorbis_test PRIVATE ../deprecated)
+target_compile_definitions(stb_vorbis_test PRIVATE VORBIS_TEST STB_DEFINE)
+add_library(stb_voxel_test test_voxel.c)
+
+# Configure fuzzers
+if(MSVC)
+  target_compile_options(stb_c_lexer_fuzz PRIVATE /fsanitize=address /fsanitize=fuzzer)
+  file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/CORPUS_C_LEXER)
+  set_target_properties(stb_c_lexer_fuzz PROPERTIES VS_DEBUGGER_COMMAND_ARGUMENTS ${CMAKE_BINARY_DIR}/CORPUS_C_LEXER)
+  
+  target_compile_options(stb_image_test_fuzz PRIVATE /fsanitize=address /fsanitize=fuzzer)
+  set_target_properties(stb_image_test_fuzz PROPERTIES VS_DEBUGGER_COMMAND_ARGUMENTS --dict ${CMAKE_CURRENT_LIST_DIR}/stb_png.dict ${CMAKE_BINARY_DIR}/CORPUS_IMAGE)
+  file(COPY pbm DESTINATION ${CMAKE_BINARY_DIR}/CORPUS_IMAGE)
+  file(COPY pic DESTINATION ${CMAKE_BINARY_DIR}/CORPUS_IMAGE)
+  file(COPY pngsuite DESTINATION ${CMAKE_BINARY_DIR}/CORPUS_IMAGE)
+  
+  if(NOT EXISTS ${CMAKE_BINARY_DIR}/gif.tar.gz)
+    file(DOWNLOAD https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/imagetestsuite/imagetestsuite-gif-1.00.tar.gz ${CMAKE_BINARY_DIR}/gif.tar.gz SHOW_PROGRESS)
+    file(ARCHIVE_EXTRACT INPUT ${CMAKE_BINARY_DIR}/gif.tar.gz DESTINATION ${CMAKE_BINARY_DIR}/CORPUS_IMAGE PATTERNS **.gif)
+  endif()
+  
+  if(NOT EXISTS ${CMAKE_BINARY_DIR}/jpg.tar.gz)
+    file(DOWNLOAD https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/imagetestsuite/imagetestsuite-jpg-1.00.tar.gz ${CMAKE_BINARY_DIR}/jpg.tar.gz SHOW_PROGRESS)
+    file(ARCHIVE_EXTRACT INPUT ${CMAKE_BINARY_DIR}/jpg.tar.gz DESTINATION ${CMAKE_BINARY_DIR}/CORPUS_IMAGE PATTERNS **.jpg)
+  endif()
+  
+  if(NOT EXISTS ${CMAKE_BINARY_DIR}/bmp.zip)
+    file(DOWNLOAD http://entropymine.com/jason/bmpsuite/releases/bmpsuite-2.6.zip ${CMAKE_BINARY_DIR}/bmp.zip SHOW_PROGRESS)
+    file(ARCHIVE_EXTRACT INPUT ${CMAKE_BINARY_DIR}/bmp.zip DESTINATION ${CMAKE_BINARY_DIR}/CORPUS_IMAGE PATTERNS **.bmp)
+  endif()
+  
+  if(NOT EXISTS ${CMAKE_BINARY_DIR}/tga.zip)
+    file(DOWNLOAD https://github.com/richgel999/tga_test_files/archive/master.zip ${CMAKE_BINARY_DIR}/tga.zip SHOW_PROGRESS)
+    file(ARCHIVE_EXTRACT INPUT ${CMAKE_BINARY_DIR}/tga.zip DESTINATION ${CMAKE_BINARY_DIR}/CORPUS_IMAGE PATTERNS **.tga)
+  endif()
+endif()

@@ -21,7 +21,9 @@
 typedef int intmax_t;
 typedef ptrdiff_t ssize_t;
 #else
-#include <stdint.h>  // for intmax_t, ssize_t
+#include <stdint.h>  // for intmax_t
+#include <basetsd.h> // for ssize_t
+typedef SSIZE_T ssize_t;
 #endif
 
 // stbsp_sprintf
