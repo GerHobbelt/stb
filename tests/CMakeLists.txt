@@ -1,3 +1,9 @@
+# Sets up projects for stb tests.
+# The STB_FUZZER_SANITIZERS variable can be set to enable various sanitizers;
+# for instance, to enable Undefined Behavior Sanitizer and Address Sanitizer on
+# clang, use
+# _build> cmake .. -DSTB_FUZZER_SANITIZERS="-fsanitize=undefined,address"
+
 cmake_minimum_required(VERSION 3.13)
 
 project(stb_tests)
@@ -16,7 +22,6 @@ file(DOWNLOAD "https://nothings.org/stb_vorbis/samples/sketch008.ogg" ${CMAKE_BI
 # tests that don't have main() functions
 add_executable(stb_c_lexer_test c_lexer_test.c)
 set_target_properties(stb_c_lexer_test PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/..) # Since it parses itself
-add_executable(stb_c_lexer_fuzz stb_c_lexer_fuzzer.cpp)
 
 add_executable(stb_connected_components_test grid_reachability.c test_c_compilation.c)
 target_compile_definitions(stb_connected_components_test PRIVATE GRID_TEST STB_DEFINE)
@@ -35,7 +40,6 @@ target_compile_definitions(stb_image_test PRIVATE PNGSUITE_PRIMARY)
 target_include_directories(stb_image_test PRIVATE ../deprecated)
 set_target_properties(stb_image_test PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}) # Since it reads pngsuite/primary
 add_library(stb_image_test_compilation test_image.c)
-add_executable(stb_image_test_fuzz stbi_read_fuzzer.c)
 add_library(stb_image_write_test_compilation test_image_write.c)
 set_target_properties(stb_image_test PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}) # Since it writes to output/
 
@@ -84,35 +88,84 @@ target_include_directories(stb_vorbis_test PRIVATE ../deprecated)
 target_compile_definitions(stb_vorbis_test PRIVATE VORBIS_TEST STB_DEFINE)
 add_library(stb_voxel_test test_voxel.c)
 
-# Configure fuzzers
+#-------------------------------------------------------------------------------
+# Vorbis test cases
+add_executable(stb_vorbis_test_issues
+  vorbis/vorbis_test_issues.c
+  vorbis/1536.h
+  vorbis/1537.h
+  vorbis/1553.h
+  vorbis/1554.h
+  vorbis/1555.h
+  vorbis/1556.h
+  vorbis/1557.h
+  vorbis/1558.h
+  vorbis/1559.h
+  vorbis/1560.h
+)
 if(MSVC)
-  target_compile_options(stb_c_lexer_fuzz PRIVATE /fsanitize=address /fsanitize=fuzzer)
-  file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/CORPUS_C_LEXER)
-  set_target_properties(stb_c_lexer_fuzz PROPERTIES VS_DEBUGGER_COMMAND_ARGUMENTS ${CMAKE_BINARY_DIR}/CORPUS_C_LEXER)
-  
-  target_compile_options(stb_image_test_fuzz PRIVATE /fsanitize=address /fsanitize=fuzzer)
-  set_target_properties(stb_image_test_fuzz PROPERTIES VS_DEBUGGER_COMMAND_ARGUMENTS --dict ${CMAKE_CURRENT_LIST_DIR}/stb_png.dict ${CMAKE_BINARY_DIR}/CORPUS_IMAGE)
-  file(COPY pbm DESTINATION ${CMAKE_BINARY_DIR}/CORPUS_IMAGE)
-  file(COPY pic DESTINATION ${CMAKE_BINARY_DIR}/CORPUS_IMAGE)
-  file(COPY pngsuite DESTINATION ${CMAKE_BINARY_DIR}/CORPUS_IMAGE)
-  
-  if(NOT EXISTS ${CMAKE_BINARY_DIR}/gif.tar.gz)
-    file(DOWNLOAD https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/imagetestsuite/imagetestsuite-gif-1.00.tar.gz ${CMAKE_BINARY_DIR}/gif.tar.gz SHOW_PROGRESS)
-    file(ARCHIVE_EXTRACT INPUT ${CMAKE_BINARY_DIR}/gif.tar.gz DESTINATION ${CMAKE_BINARY_DIR}/CORPUS_IMAGE PATTERNS **.gif)
-  endif()
-  
-  if(NOT EXISTS ${CMAKE_BINARY_DIR}/jpg.tar.gz)
-    file(DOWNLOAD https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/imagetestsuite/imagetestsuite-jpg-1.00.tar.gz ${CMAKE_BINARY_DIR}/jpg.tar.gz SHOW_PROGRESS)
-    file(ARCHIVE_EXTRACT INPUT ${CMAKE_BINARY_DIR}/jpg.tar.gz DESTINATION ${CMAKE_BINARY_DIR}/CORPUS_IMAGE PATTERNS **.jpg)
-  endif()
-  
-  if(NOT EXISTS ${CMAKE_BINARY_DIR}/bmp.zip)
-    file(DOWNLOAD http://entropymine.com/jason/bmpsuite/releases/bmpsuite-2.6.zip ${CMAKE_BINARY_DIR}/bmp.zip SHOW_PROGRESS)
-    file(ARCHIVE_EXTRACT INPUT ${CMAKE_BINARY_DIR}/bmp.zip DESTINATION ${CMAKE_BINARY_DIR}/CORPUS_IMAGE PATTERNS **.bmp)
-  endif()
-  
-  if(NOT EXISTS ${CMAKE_BINARY_DIR}/tga.zip)
-    file(DOWNLOAD https://github.com/richgel999/tga_test_files/archive/master.zip ${CMAKE_BINARY_DIR}/tga.zip SHOW_PROGRESS)
-    file(ARCHIVE_EXTRACT INPUT ${CMAKE_BINARY_DIR}/tga.zip DESTINATION ${CMAKE_BINARY_DIR}/CORPUS_IMAGE PATTERNS **.tga)
+  target_compile_options(stb_vorbis_test_issues PRIVATE /fsanitize=address)
+endif()
+# Other .ogg files are handled in the fuzzer.
+
+#-------------------------------------------------------------------------------
+# Configure fuzzers
+
+# Set up default sanitizers
+if(NOT STB_FUZZER_SANITIZERS)
+  if(MSVC)
+    set(STB_FUZZER_SANITIZERS /fsanitize=address)
+  else()
+    set(STB_FUZZER_SANITIZERS -fsanitize=address,undefined)
   endif()
 endif()
+
+if(MSVC)
+  set(_STB_SANITIZERS_ALL ${STB_FUZZER_SANITIZERS} /fsanitize=fuzzer)
+else()
+  set(_STB_SANITIZERS_ALL ${STB_FUZZER_SANITIZERS} -fsanitize=fuzzer)
+endif()
+
+# Corpuses:
+# stb_image
+file(COPY pbm DESTINATION ${CMAKE_BINARY_DIR}/CORPUS_IMAGE)
+file(COPY pic DESTINATION ${CMAKE_BINARY_DIR}/CORPUS_IMAGE)
+file(COPY pngsuite DESTINATION ${CMAKE_BINARY_DIR}/CORPUS_IMAGE)
+
+if(NOT EXISTS ${CMAKE_BINARY_DIR}/gif.tar.gz)
+  file(DOWNLOAD https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/imagetestsuite/imagetestsuite-gif-1.00.tar.gz ${CMAKE_BINARY_DIR}/gif.tar.gz SHOW_PROGRESS)
+  file(ARCHIVE_EXTRACT INPUT ${CMAKE_BINARY_DIR}/gif.tar.gz DESTINATION ${CMAKE_BINARY_DIR}/CORPUS_IMAGE PATTERNS **.gif)
+endif()
+
+if(NOT EXISTS ${CMAKE_BINARY_DIR}/jpg.tar.gz)
+  file(DOWNLOAD https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/imagetestsuite/imagetestsuite-jpg-1.00.tar.gz ${CMAKE_BINARY_DIR}/jpg.tar.gz SHOW_PROGRESS)
+  file(ARCHIVE_EXTRACT INPUT ${CMAKE_BINARY_DIR}/jpg.tar.gz DESTINATION ${CMAKE_BINARY_DIR}/CORPUS_IMAGE PATTERNS **.jpg)
+endif()
+
+if(NOT EXISTS ${CMAKE_BINARY_DIR}/bmp.zip)
+  file(DOWNLOAD http://entropymine.com/jason/bmpsuite/releases/bmpsuite-2.6.zip ${CMAKE_BINARY_DIR}/bmp.zip SHOW_PROGRESS)
+  file(ARCHIVE_EXTRACT INPUT ${CMAKE_BINARY_DIR}/bmp.zip DESTINATION ${CMAKE_BINARY_DIR}/CORPUS_IMAGE PATTERNS **.bmp)
+endif()
+
+if(NOT EXISTS ${CMAKE_BINARY_DIR}/tga.zip)
+  file(DOWNLOAD https://github.com/richgel999/tga_test_files/archive/master.zip ${CMAKE_BINARY_DIR}/tga.zip SHOW_PROGRESS)
+  file(ARCHIVE_EXTRACT INPUT ${CMAKE_BINARY_DIR}/tga.zip DESTINATION ${CMAKE_BINARY_DIR}/CORPUS_IMAGE PATTERNS **.tga)
+endif()
+
+# stb_vorbis
+file(COPY vorbis
+     DESTINATION ${CMAKE_BINARY_DIR}/CORPUS_VORBIS
+     FILES_MATCHING PATTERN **.ogg)
+
+# Executables:
+add_executable(stb_c_lexer_test_fuzz stb_c_lexer_fuzzer.cpp)
+target_compile_options(stb_c_lexer_test_fuzz PRIVATE ${_STB_SANITIZERS_ALL})
+set_target_properties(stb_c_lexer_test_fuzz PROPERTIES VS_DEBUGGER_COMMAND_ARGUMENTS ${CMAKE_BINARY_DIR}/CORPUS_C_LEXER)
+
+add_executable(stb_image_test_fuzz stbi_read_fuzzer.c)
+target_compile_options(stb_image_test_fuzz PRIVATE ${_STB_SANITIZERS_ALL})
+set_target_properties(stb_image_test_fuzz PROPERTIES VS_DEBUGGER_COMMAND_ARGUMENTS --dict ${CMAKE_CURRENT_LIST_DIR}/stb_png.dict ${CMAKE_BINARY_DIR}/CORPUS_IMAGE)
+
+add_executable(stb_vorbis_test_fuzz vorbis/vorbis_test_fuzzer.c)
+target_compile_options(stb_vorbis_test_fuzz PRIVATE ${_STB_SANITIZERS_ALL})
+set_target_properties(stb_vorbis_test_fuzz PROPERTIES VS_DEBUGGER_COMMAND_ARGUMENTS ${CMAKE_BINARY_DIR}/CORPUS_VORBIS)
