@@ -3787,7 +3787,7 @@ static int start_decoder(vorb *f)
                lengths[j] = get_bits(f, 5) + 1;
                ++total;
                if (lengths[j] == 32) {
-                   if (c->sparse) setup_temp_free(f, f->temp_lengths, c->entries);
+                   if (c->sparse) setup_temp_free(f, &f->temp_lengths, c->entries);
                    return error(f, VORBIS_invalid_setup);
                }
             } else {
@@ -3906,6 +3906,10 @@ static int start_decoder(vorb *f)
             c->lookup_values = c->entries * c->dimensions;
          }
          if (c->lookup_values == 0) return error(f, VORBIS_invalid_setup);
+         // Before we allocate the lookup table, verify that it can be read
+         // from the file. Otherwise, c->lookup_values can be arbitrarily
+         // large, and we run out of memory.
+         if (c->lookup_values > (8 * f->stream_len) / c->value_bits) return error(f, VORBIS_invalid_setup);
          mults = (uint16 *) setup_temp_malloc(f, sizeof(mults[0]) * c->lookup_values);
          f->temp_mults = mults;
          if (mults == NULL) return error(f, VORBIS_outofmem);
