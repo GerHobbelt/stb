@@ -67,7 +67,7 @@ int main(int argc, char **argv)
   char *temp=NULL;
   stbds_unit_tests();
   arrins(temp, 0, 'a');
-  arrins(temp, arrlen(temp), 'b');
+  arrins(temp, 1, 'b');
   churn(0,100,1);
   churn(3,7,50000);
   churn(3,15,50000);

@@ -37,7 +37,7 @@
 #define STB_C_LEXER_DEFINITIONS         
 
 #define STB_C_LEXER_IMPLEMENTATION
-#define STB_C_LEXER_SELF_TEST
+// #define STB_C_LEXER_SELF_TEST
 #include "../stb_c_lexer.h"
 #include <stdint.h>
 #include <stdlib.h>

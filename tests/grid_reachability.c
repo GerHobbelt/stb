@@ -179,7 +179,7 @@ int main(int argc, char **argv)
    //reference(map, w, h);
 
    g = malloc(stbcc_grid_sizeof());
-   printf("Size: %d\n", stbcc_grid_sizeof());
+   printf("Size: %zu\n", stbcc_grid_sizeof());
 
 #if 0
    memset(map, 0, w*h);

@@ -1542,6 +1542,7 @@ int stb_is_pow2(size_t n)
 #pragma warning(disable: 4035)  // disable warning about no return value
 int stb_log2_floor(size_t n)
 {
+   if (n == 0) return -1;
    #if _MSC_VER > 1700
    unsigned long i;
    #ifdef STB_PTR64
@@ -1549,14 +1550,11 @@ int stb_log2_floor(size_t n)
    #else
    _BitScanReverse(&i, n);
    #endif
-   return i != 0 ? i : -1;
+   return i;
    #else
    __asm {
       bsr eax,n
-      jnz done
-      mov eax,-1
    }
-   done:;
    #endif
 }
 #pragma warning(pop)
@@ -5578,7 +5576,7 @@ typedef struct
    int   errors;
 } stb__file_data;
 
-static FILE *stb__open_temp_file(char *temp_name, char *src_name, const char *mode)
+static FILE *stb__open_temp_file(char *temp_name, size_t temp_name_size, char *src_name, const char *mode)
 {
    size_t p;
 #ifdef _MSC_VER
@@ -5598,7 +5596,7 @@ static FILE *stb__open_temp_file(char *temp_name, char *src_name, const char *mo
    // try multiple times to make a temp file... just in
    // case some other process makes the name first
    for (j=0; j < 32; ++j) {
-      stb_p_strcpy_s(temp_name+p, 65536, "stmpXXXXXX");
+      stb_p_strcpy_s(temp_name+p, temp_name_size-p, "stmpXXXXXX");
       if (!stb_p_mktemp(temp_name))
          return 0;
 
@@ -5608,7 +5606,7 @@ static FILE *stb__open_temp_file(char *temp_name, char *src_name, const char *mo
    }
    #else
    {
-      stb_p_strcpy_s(temp_name+p, 65536, "stmpXXXXXX");
+      stb_p_strcpy_s(temp_name+p, temp_name_size-p, "stmpXXXXXX");
       #ifdef __MINGW32__
          int fd = open(stb_p_mktemp(temp_name), O_RDWR);
       #else
@@ -5631,6 +5629,7 @@ FILE *  stb_fopen(char *filename, const char *mode)
 {
    FILE *f;
    char name_full[4096];
+   size_t temp_full_size = sizeof(name_full) + 12;
    char temp_full[sizeof(name_full) + 12];
 
    // @TODO: if the file doesn't exist, we can also use the fastpath here
@@ -5644,7 +5643,7 @@ FILE *  stb_fopen(char *filename, const char *mode)
    if (stb_fullpath(name_full, sizeof(name_full), filename)==0)
       return 0;
 
-   f = stb__open_temp_file(temp_full, name_full, mode);
+   f = stb__open_temp_file(temp_full, temp_full_size, name_full, mode);
    if (f != NULL) {
       stb__file_data *d = (stb__file_data *) malloc(sizeof(*d));
       if (!d) { assert(0);  /* NOTREACHED */fclose(f); return NULL; }
@@ -5698,7 +5697,7 @@ int     stb_fclose(FILE *f, int keep)
          char preserved_old_file[4096];
 
          // generate a temp filename in the same directory (also creates it, which we don't need)
-         FILE *dummy = stb__open_temp_file(preserved_old_file, d->name, "wb");
+         FILE *dummy = stb__open_temp_file(preserved_old_file, sizeof(preserved_old_file), d->name, "wb");
          if (dummy != NULL) {
             // we don't actually want the open file
             fclose(dummy);

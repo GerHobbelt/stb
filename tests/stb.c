@@ -16,7 +16,7 @@
 
 //#define STB_FASTMALLOC
 #ifdef _DEBUG
-#define STB_MALLOC_WRAPPER_DEBUG
+// #define STB_MALLOC_WRAPPER_DEBUG
 #endif
 #ifndef _M_AMD64
 #define STB_NPTR
@@ -439,9 +439,9 @@ void do_compressor(int,char**);
 void test_sha1(void);
 
 int alloc_num, alloc_size;
-void dumpfunc(void *ptr, int sz, char *file, int line)
+void dumpfunc(void *ptr, size_t sz, char *file, int line)
 {
-   printf("%p (%6d)  -- %3d:%s\n", ptr, sz, line, file);
+   printf("%p (%6zu)  -- %3d:%s\n", ptr, sz, line, file);
    alloc_size += sz;
    alloc_num  += 1;
 }
@@ -657,6 +657,8 @@ int main(int argc, char **argv)
       printf("Memory still in use: %d allocations of %d bytes.\n", alloc_num, alloc_size);
    #endif
 
+   // Note (nbickford): I can't seem to find stua_ in current versions of stb.
+#if 0
    test_script();
    p = stb_file("sieve.stua", NULL);
    if (p) {
@@ -664,6 +666,7 @@ int main(int argc, char **argv)
       free(p);
    }
    stua_uninit();
+#endif
 
    //stb_wrapper_listall(dumpfunc);
    printf("Memory still in use: %d allocations of %d bytes.\n", alloc_num, alloc_size);
@@ -1559,7 +1562,7 @@ int main(int argc, char **argv)
 
    #ifdef _MSC_VER
    if (count)
-      __asm int 3;
+      __debugbreak();
    #endif
 
    return 0;
