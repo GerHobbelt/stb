@@ -326,6 +326,7 @@
       Jorge L Rodriguez: Original 1.0 implementation
       Aras Pranckevicius: bugfixes
       Nathan Reed: warning fixes for 1.0
+      Julien Koenen: bug fix
 
    REVISIONS
       2.06 (2024-02-10) fix for indentical width/height 3x or more down-scaling 
