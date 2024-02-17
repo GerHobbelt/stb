@@ -5,9 +5,18 @@
 
 #ifdef GRID_TEST
 
-#include <windows.h>
 #include <stdio.h>
-#include <direct.h>
+
+#ifdef WIN32
+#include <Windows.h> // For QueryPerformance*
+#include <direct.h> // For _mkdir
+#ifndef mkdir
+#define mkdir(path, mode) _mkdir(path)
+#endif // End #ifndef mkdir
+#else // Linux
+#include <sys/stat.h>
+#include <time.h>
+#endif // End OS
 
 //#define STB_DEFINE
 #include "stb.h"
@@ -123,23 +132,37 @@ void test_connected(stbcc_grid *g)
 }
 
 static char *message;
-LARGE_INTEGER start;
+#ifdef WIN32
+#define TIME_TYPE LARGE_INTEGER
+#else
+#define TIME_TYPE struct timespec
+#endif
+TIME_TYPE start;
 
 void start_timer(char *s)
 {
    message = s;
+#ifdef WIN32
    QueryPerformanceCounter(&start);
+#else
+   clock_gettime(CLOCK_REALTIME, &start);
+#endif
 }
 
 void end_timer(void)
 {
-   LARGE_INTEGER end, freq;
+   TIME_TYPE end;
    double tm;
 
+#ifdef WIN32
+   TIME_TYPE freq;
    QueryPerformanceCounter(&end);
    QueryPerformanceFrequency(&freq);
-
    tm = (end.QuadPart - start.QuadPart) / (double) freq.QuadPart;
+#else
+   clock_gettime(CLOCK_REALTIME, &end);
+   tm = ((end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) * 1e-9);
+#endif
    printf("%6.4lf ms: %s\n", tm * 1000, message);
 }
 
@@ -172,7 +195,7 @@ int main(int argc, char **argv)
       map[(stb_rand()%h)*w + stb_rand()%w] ^= 255;
    #endif
             
-   _mkdir("tests/output/stbcc");
+   mkdir("tests/output/stbcc", 0777);
 
    stbi_write_png("tests/output/stbcc/reference.png", w, h, 1, map, 0);
 
