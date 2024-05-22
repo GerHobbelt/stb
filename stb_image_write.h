@@ -765,6 +765,8 @@ static int stbi_write_hdr_core(stbi__write_context *s, int x, int y, int comp, f
    else {
       // Each component is stored separately. Allocate scratch space for full output scanline.
       unsigned char *scratch = (unsigned char *) STBIW_MALLOC(x*4);
+      if (NULL == scratch)
+         return 0;
       int i, len;
       char buffer[128];
       char header[] = "#?RADIANCE\n# Written by stb_image_write.h\nFORMAT=32-bit_rle_rgbe\n";
