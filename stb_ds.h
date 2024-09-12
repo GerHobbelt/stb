@@ -398,7 +398,7 @@ CREDITS
 #define arrlen      stbds_arrlen
 #define arrlenu     stbds_arrlenu
 #define arrput      stbds_arrput
-#define arrpush     stbds_arrput
+#define arrpush     stbds_arrpush
 #define arrpop      stbds_arrpop
 #define arrfree     stbds_arrfree
 #define arraddn     stbds_arraddn // deprecated, use one of the following instead:
