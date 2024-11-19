@@ -1,4 +1,4 @@
-/* stb_image_resize2 - v2.11 - public domain image resizing
+/* stb_image_resize2 - v2.12 - public domain image resizing
 
    by Jeff Roberts (v2) and Jorge L Rodriguez
    http://github.com/nothings/stb
@@ -328,6 +328,7 @@
       Julien Koenen: bug fix
 
    REVISIONS
+      2.12 (2024-10-18) fix incorrect use of user_data with STBIR_FREE
       2.11 (2024-09-08) fix harmless asan warnings in 2-channel and 3-channel mode
                           with AVX-2, fix some weird scaling edge conditions with
                           point sample mode.
@@ -6732,7 +6733,7 @@ static void stbir__free_internal_mem( stbir__info *info )
     STBIR__FREE_AND_CLEAR( info->horizontal.coefficients );
     STBIR__FREE_AND_CLEAR( info->horizontal.contributors );
     STBIR__FREE_AND_CLEAR( info->alloced_mem );
-    STBIR_FREE( info );
+    STBIR_FREE( info, info->user_data );
   #endif
   }
 
