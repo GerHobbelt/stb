@@ -3500,7 +3500,7 @@ static int stbi__decode_jpeg_image(stbi__jpeg *j)
          if (NL != j->s->img_y) return stbi__err("bad DNL height", "Corrupt JPEG", STBI_ERROR_BAD_JPEG);
          m = stbi__get_marker(j);
       } else {
-         if (!stbi__process_marker(j, m)) return 1;
+         if (!stbi__process_marker(j, m)) return stbi__err("bad marker","Corrupt JPEG");
          m = stbi__get_marker(j);
       }
    }
