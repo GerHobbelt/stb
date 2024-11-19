@@ -8,6 +8,7 @@ extern void stb_vorbis_dumpmem(void);
 int main(int argc, char **argv)
 {
    size_t memlen;
+   // path: ../../lib/vorbis/sample/sketch008.ogg
    unsigned char *mem = stb_fileu("sketch008.ogg", &memlen);
    int chan, samplerate;
    short *output;
