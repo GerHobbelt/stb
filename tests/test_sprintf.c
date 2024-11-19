@@ -17,14 +17,20 @@
 #include <stdio.h>   // for printf
 #include <string.h>  // for strcmp, strncmp, strlen
 
+// For intmax_t and ssize_t:
+#ifdef WIN32
 #if _MSC_VER && _MSC_VER <= 1600 
 typedef int intmax_t;
 typedef ptrdiff_t ssize_t;
-#else
-#include <stdint.h>  // for intmax_t
-#include <basetsd.h> // for ssize_t
+#else // ! #if _MSC_VER && _MSC_VER <= 1600
+#include <stdint.h>
+#include <basetsd.h>
 typedef SSIZE_T ssize_t;
-#endif
+#endif // End #if _MSC_VER && _MSC_VER <= 1600
+#else // ! #ifdef WIN32
+#include <stdint.h>
+#include <sys/types.h>
+#endif // End #ifdef WIN32
 
 // stbsp_sprintf
 #define CHECK_END(str) \

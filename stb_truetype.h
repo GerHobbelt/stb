@@ -55,7 +55,7 @@
 //       Rob Loach                  Cort Stratton
 //       Kenney Phillis Jr.         Brian Costabile
 //       Ken Voskuil (kaesve)       Yakov Galka
-//       Neil Bickford
+//       Nia Bickford
 //
 // VERSION HISTORY
 //

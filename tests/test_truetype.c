@@ -15,13 +15,14 @@
 
 #include <stdio.h>
 
-unsigned char ttf_buffer[1 << 25];
+#define TTF_BUFFER_SIZE 1 << 25
+unsigned char ttf_buffer[TTF_BUFFER_SIZE];
 unsigned char output[512*100];
 
 void debug(void)
 {
    stbtt_fontinfo font;
-   fread(ttf_buffer, 1, 1<<25, fopen("c:/x/lm/LiberationMono-Regular.ttf", "rb"));
+   fread(ttf_buffer, 1, TTF_BUFFER_SIZE, fopen("c:/x/lm/LiberationMono-Regular.ttf", "rb"));
    stbtt_InitFont(&font, ttf_buffer, 0);
 
    stbtt_MakeGlyphBitmap(&font, output, 6, 9, 512, 5.172414E-03f, 5.172414E-03f, 54);
@@ -38,13 +39,18 @@ int main(int argc, char **argv)
    stbtt_fontinfo font;
    unsigned char *bitmap;
    int w,h,i,j,c = (argc > 1 ? atoi(argv[1]) : '@'), s = (argc > 2 ? atoi(argv[2]) : 32);
+#ifdef WIN32
+   const char* default_font_path = "c:/windows/fonts/DejaVuSans.ttf";
+#else
+   const char* default_font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf";
+#endif
 
    //debug();
 
    // @TODO: why is minglui.ttc failing? 
    //fread(ttf_buffer, 1, 1<<25, fopen(argc > 3 ? argv[3] : "c:/windows/fonts/mingliu.ttc", "rb"));
 
-   fread(ttf_buffer, 1, 1<<25, fopen(argc > 3 ? argv[3] : "c:/windows/fonts/DejaVuSans.ttf", "rb"));
+   fread(ttf_buffer, 1, TTF_BUFFER_SIZE, fopen(argc > 3 ? argv[3] : default_font_path, "rb"));
 
    stbtt_InitFont(&font, ttf_buffer, stbtt_GetFontOffsetForIndex(ttf_buffer,0));
 
