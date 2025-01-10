@@ -126,6 +126,7 @@ add_executable(stb_image_test_issues
 )
 target_compile_options(stb_image_test_issues PRIVATE ${STB_SANITIZERS})
 if(UNIX)
+  target_link_libraries(stb_image_test_issues PRIVATE m)
   target_link_options(stb_image_test_issues PRIVATE ${STB_SANITIZERS})
 endif()
 
