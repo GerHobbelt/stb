@@ -2685,10 +2685,19 @@ STBTT_DEF stbtt_uint8 *stbtt_FindSVGDoc(const stbtt_fontinfo *info, int gl)
    int numEntries = ttUSHORT(svg_doc_list);
    stbtt_uint8 *svg_docs = svg_doc_list + 2;
 
-   for(i=0; i<numEntries; i++) {
-      stbtt_uint8 *svg_doc = svg_docs + (12 * i);
-      if ((gl >= ttUSHORT(svg_doc)) && (gl <= ttUSHORT(svg_doc + 2)))
+   // opentype/spec/svg: Records must be sorted in increasing startGlyphID order.
+   int j = numEntries;
+   i = 0;
+   while (i < j) {
+      int k = i + (j - i) / 2;
+      stbtt_uint8 *svg_doc = svg_docs + (12 * k);
+      if (gl < ttUSHORT(svg_doc)) {
+         j = k;
+      } else if (gl > ttUSHORT(svg_doc + 2)) {
+         i = k + 1;
+      } else {
          return svg_doc;
+      }
    }
    return 0;
 }
