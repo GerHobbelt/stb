@@ -112,15 +112,15 @@
 typedef struct
 {
    // lexer variables
-   char *input_stream;
-   char *eof;
-   char *parse_point;
+   char const *input_stream;
+   char const *eof;
+   char const *parse_point;
    char *string_storage;
    int   string_storage_len;
 
    // lexer parse location for error messages
-   char *where_firstchar;
-   char *where_lastchar;
+   char const *where_firstchar;
+   char const *where_lastchar;
 
    // lexer token variables
    long token;
@@ -140,33 +140,35 @@ typedef struct
 extern "C" {
 #endif
 
-extern void stb_c_lexer_init(stb_lexer *lexer, const char *input_stream, const char *input_stream_end, char *string_store, int store_length);
-// this function initialize the 'lexer' structure
-//   Input:
-//   - input_stream points to the file to parse, loaded into memory
-//   - input_stream_end points to the end of the file, or NULL if you use 0-for-EOF
-//   - string_store is storage the lexer can use for storing parsed strings and identifiers
-//   - store_length is the length of that storage
+// This function initialize the 'lexer' structure.
+// Input:
+//   - `input_stream`:        points to the file to parse, loaded into memory.
+//   - `input_stream_end`:    points to the end of the file, or `NULL` if you use 0-for-EOF.
+//   - `string_store`:        storage that lexer will use for storing parsed strings and identifiers.
+//   - `store_length`:        the length of that storage.
+extern void stb_c_lexer_init(stb_lexer *lexer, char const *input_stream, char const *input_stream_end, char *string_store, int store_length);
 
+// This function returns non-zero if a token is parsed, or 0 if at EOF.
+// Output:
+//   - `lexer->token`:        the token ID, which will be either an unicode code point for a single-char
+//      token in the range [0, 255]; or an actual ID, in the range [256, `CLEX_first_unused_token`],
+//      which may represent a multichar, an the eof, or an error.
+//   - `lexer->real_number`:  a double constant value for `CLEX_floatlit`, or CLEX_intlit if `STB_C_LEX_INTEGERS_AS_DOUBLES`.
+//   - `lexer->int_number`:   an integer constant for `CLEX_intlit` if `!STB_C_LEX_INTEGERS_AS_DOUBLES`, or character for `CLEX_charlit`.
+//   - `lexer->string`:       a 0-terminated string for CLEX_dqstring or `CLEX_sqstring` or `CLEX_id`.
+//   - `lexer->string_len`:   the byte length of `lexer->string`.
 extern int stb_c_lexer_get_token(stb_lexer *lexer);
-// this function returns non-zero if a token is parsed, or 0 if at EOF
-//   Output:
-//   - lexer->token is the token ID, which is unicode code point for a single-char token, < 0 for a multichar or eof or error
-//   - lexer->real_number is a double constant value for CLEX_floatlit, or CLEX_intlit if STB_C_LEX_INTEGERS_AS_DOUBLES
-//   - lexer->int_number is an integer constant for CLEX_intlit if !STB_C_LEX_INTEGERS_AS_DOUBLES, or character for CLEX_charlit
-//   - lexer->string is a 0-terminated string for CLEX_dqstring or CLEX_sqstring or CLEX_id
-//   - lexer->string_len is the byte length of lexer->string
 
-extern void stb_c_lexer_get_location(const stb_lexer *lexer, const char *where, stb_lex_location *loc);
-// this inefficient function returns the line number and character offset of a
+// This inefficient function returns the line number and character offset of a
 // given location in the file as returned by stb_lex_token. Because it's inefficient,
 // you should only call it for errors, not for every token.
 // For error messages of invalid tokens, you typically want the location of the start
 // of the token (which caused the token to be invalid). For bugs involving legit
 // tokens, you can report the first or the range.
-//    Output:
-//    - loc->line_number is the line number in the file, counting from 1, of the location
-//    - loc->line_offset is the char-offset in the line, counting from 0, of the location
+// Output:
+//   - `loc->line_number`:    the line number of the location in the *file*, counting from 1.
+//   - `loc->line_offset`:    the char-offset of the location in the *line*, counting from 0.
+extern void stb_c_lexer_get_location(stb_lexer const *lexer, char const *where, stb_lex_location *loc);
 
 
 #ifdef __cplusplus
@@ -273,25 +275,25 @@ typedef long       stb__clex_int;
 #define N(a)
 
 // API function
-void stb_c_lexer_init(stb_lexer *lexer, const char *input_stream, const char *input_stream_end, char *string_store, int store_length)
+void stb_c_lexer_init(stb_lexer *lexer, char const *input_stream, char const *input_stream_end, char *string_store, int store_length)
 {
-   lexer->input_stream = (char *) input_stream;
-   lexer->eof = (char *) input_stream_end;
-   lexer->parse_point = (char *) input_stream;
+   lexer->input_stream = input_stream;
+   lexer->eof = input_stream_end;
+   lexer->parse_point = input_stream;
    lexer->string_storage = string_store;
    lexer->string_storage_len = store_length;
 }
 
 // API function
-void stb_c_lexer_get_location(const stb_lexer *lexer, const char *where, stb_lex_location *loc)
+void stb_c_lexer_get_location(stb_lexer const *lexer, char const *where, stb_lex_location *loc)
 {
-   char *p = lexer->input_stream;
+   char const *p = lexer->input_stream;
    int line_number = 1;
    int char_offset = 0;
    while (*p && p < where) {
       if (*p == '\n' || *p == '\r') {
-         p += (p[0]+p[1] == '\r'+'\n' ? 2 : 1); // skip newline
-         line_number += 1;
+         if (++p < where && p[-1] + p[0] == '\r' + '\n') ++p; // skip newline
+         ++line_number;
          char_offset = 0;
       } else {
          ++p;
@@ -303,7 +305,7 @@ void stb_c_lexer_get_location(const stb_lexer *lexer, const char *where, stb_lex
 }
 
 // main helper function for returning a parsed token
-static int stb__clex_token(stb_lexer *lexer, int token, char *start, char *end)
+static int stb__clex_token(stb_lexer *lexer, int token, char const *start, char const *end)
 {
    lexer->token = token;
    lexer->where_firstchar = start;
@@ -324,7 +326,7 @@ static int stb__clex_iswhite(int x)
    return x == ' ' || x == '\t' || x == '\r' || x == '\n' || x == '\f';
 }
 
-static const char *stb__strchr(const char *str, int ch)
+static char const *stb__strchr(char const *str, int ch)
 {
    for (; *str; ++str)
       if (*str == ch)
@@ -333,7 +335,7 @@ static const char *stb__strchr(const char *str, int ch)
 }
 
 // parse suffixes at the end of a number
-static int stb__clex_parse_suffixes(stb_lexer *lexer, long tokenid, char *start, char *cur, const char *suffixes)
+static int stb__clex_parse_suffixes(stb_lexer *lexer, long tokenid, char const *start, char const *cur, char const *suffixes)
 {
    #ifdef STB__clex_parse_suffixes
    lexer->string = lexer->string_storage;
@@ -448,7 +450,7 @@ static double stb__clex_parse_float(char *p, char **q)
 }
 #endif // STB__CLEX_use_stdlib
 
-static int stb__clex_parse_char(char *p, char **q)
+static int stb__clex_parse_char(char const *p, char const **q)
 {
    if (*p == '\\') {
       *q = p+2; // tentatively guess we'll parse two characters
@@ -463,22 +465,23 @@ static int stb__clex_parse_char(char *p, char **q)
          case '0': return '\0'; // @TODO ocatal constants
          case 'x': case 'X': return -1; // @TODO hex constants
          case 'u': return -1; // @TODO unicode constants
+         default: break;
       }
    }
    *q = p+1;
    return (unsigned char) *p;
 }
 
-static int stb__clex_parse_string(stb_lexer *lexer, char *p, int type)
+static int stb__clex_parse_string(stb_lexer *lexer, char const *p, int type)
 {
-   char *start = p;
+   char const *start = p;
    char delim = *p++; // grab the " or ' for later matching
    char *out = lexer->string_storage;
    char *outend = lexer->string_storage + lexer->string_storage_len;
    while (*p != delim) {
       int n;
       if (*p == '\\') {
-         char *q;
+         char const *q;
          n = stb__clex_parse_char(p, &q);
          if (n < 0)
             return stb__clex_token(lexer, CLEX_parse_error, start, q);
@@ -500,7 +503,7 @@ static int stb__clex_parse_string(stb_lexer *lexer, char *p, int type)
 
 int stb_c_lexer_get_token(stb_lexer *lexer)
 {
-   char *p = lexer->parse_point;
+   char const *p = lexer->parse_point;
 
    // skip whitespace and comments
    for (;;) {
@@ -528,7 +531,7 @@ int stb_c_lexer_get_token(stb_lexer *lexer)
 
       STB_C_LEX_C_COMMENTS(
          if (p != lexer->eof && p[0] == '/' && p[1] == '*') {
-            char *start = p;
+            char const *start = p;
             p += 2;
             while (p != lexer->eof && (p[0] != '*' || p[1] != '/'))
                ++p;
@@ -671,7 +674,7 @@ int stb_c_lexer_get_token(stb_lexer *lexer)
          STB_C_LEX_C_SQ_STRINGS(return stb__clex_parse_string(lexer, p, CLEX_sqstring);)
          STB_C_LEX_C_CHARS(
          {
-            char *start = p;
+            char const *start = p;
             lexer->int_number = stb__clex_parse_char(p+1, &p);
             if (lexer->int_number < 0)
                return stb__clex_token(lexer, CLEX_parse_error, start,start);
@@ -709,7 +712,7 @@ int stb_c_lexer_get_token(stb_lexer *lexer)
 
                   #ifdef STB__clex_hex_ints
                   #ifdef STB__CLEX_use_stdlib
-                  lexer->int_number = strtol((char *) p, (char **) &q, 16);
+                  lexer->int_number = strtol(p, &q, 16);
                   #else
                   {
                      stb__clex_int n=0;
@@ -737,17 +740,18 @@ int stb_c_lexer_get_token(stb_lexer *lexer)
          // so have to do float first
 
          /* FALL THROUGH */
+      __attribute__((fallthrough));
       case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
 
          #ifdef STB__clex_decimal_floats
          {
-            char *q = p;
+            char const *q = p;
             while (q != lexer->eof && (*q >= '0' && *q <= '9'))
                ++q;
             if (q != lexer->eof) {
                if (*q == '.' STB_C_LEX_FLOAT_NO_DECIMAL(|| *q == 'e' || *q == 'E')) {
                   #ifdef STB__CLEX_use_stdlib
-                  lexer->real_number = strtod((char *) p, (char**) &q);
+                  lexer->real_number = strtod(p, (char **) (void *) &q);
                   #else
                   lexer->real_number = stb__clex_parse_float(p, &q);
                   #endif
@@ -761,9 +765,9 @@ int stb_c_lexer_get_token(stb_lexer *lexer)
 
          #ifdef STB__clex_octal_ints
          if (p[0] == '0') {
-            char *q = p;
+            char const *q = p;
             #ifdef STB__CLEX_use_stdlib
-            lexer->int_number = strtol((char *) p, (char **) &q, 8);
+            lexer->int_number = strtol(p, (char **) (void *) &q, 8);
             #else
             stb__clex_int n=0;
             while (q != lexer->eof) {
@@ -783,9 +787,9 @@ int stb_c_lexer_get_token(stb_lexer *lexer)
 
          #ifdef STB__clex_decimal_ints
          {
-            char *q = p;
+            char const *q = p;
             #ifdef STB__CLEX_use_stdlib
-            lexer->int_number = strtol((char *) p, (char **) &q, 10);
+            lexer->int_number = strtol(p, (char **) (void *) &q, 10);
             #else
             stb__clex_int n=0;
             while (q != lexer->eof) {
@@ -859,6 +863,8 @@ static void print_token(stb_lexer *lexer)
 of parsing
 multiline comments */
 
+void dummy(void);
+
 /*/ comment /*/
 /**/ extern /**/
 
@@ -879,7 +885,7 @@ void dummy(void)
 
 int main(int argc, char **argv)
 {
-    (void) argc; (void) argv; // suppress warnings
+   (void) argc; (void) argv; // suppress warnings
 
    FILE *f = fopen("stb_c_lexer.h","rb");
    char *text = (char *) malloc(1 << 20);
