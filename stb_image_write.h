@@ -1,4 +1,4 @@
-/* stb_image_write - v1.16 - public domain - http://nothings.org/stb
+/* stb_image_write - v1.18 - public domain - http://nothings.org/stb
    writes out PNG/BMP/TGA/JPEG/HDR images to C stdio - Sean Barrett 2010-2015
                                      no warranty implied; use at your own risk
 
@@ -178,6 +178,7 @@ STBIWDEF int stbi_write_bmp(char const *filename, int w, int h, int comp, const 
 STBIWDEF int stbi_write_tga(char const *filename, int w, int h, int comp, const void  *data);
 STBIWDEF int stbi_write_hdr(char const *filename, int w, int h, int comp, const float *data);
 STBIWDEF int stbi_write_jpg(char const *filename, int x, int y, int comp, const void  *data, int quality);
+STBIWDEF int stbi_write_gif(char const *filename, int w, int h, int comp, const void *data);
 
 #ifdef STBIW_WINDOWS_UTF8
 STBIWDEF int stbiw_convert_wchar_to_utf8(char *buffer, size_t bufferlen, const wchar_t* input);
@@ -191,6 +192,7 @@ STBIWDEF int stbi_write_bmp_to_func(stbi_write_func *func, void *context, int w,
 STBIWDEF int stbi_write_tga_to_func(stbi_write_func *func, void *context, int w, int h, int comp, const void  *data);
 STBIWDEF int stbi_write_hdr_to_func(stbi_write_func *func, void *context, int w, int h, int comp, const float *data);
 STBIWDEF int stbi_write_jpg_to_func(stbi_write_func *func, void *context, int x, int y, int comp, const void  *data, int quality);
+STBIWDEF int stbi_write_gif_to_func(stbi_write_func *func, void *context, int w, int h, int comp, const void *data);
 
 STBIWDEF void stbi_flip_vertically_on_write(int flip_boolean);
 
@@ -1611,6 +1613,134 @@ STBIWDEF int stbi_write_jpg_to_func(stbi_write_func *func, void *context, int x,
    return stbi_write_jpg_core(&s, x, y, comp, (void *) data, quality);
 }
 
+static void stbiw__gif_palette(unsigned char pal[256][3])
+{
+   int r,g,b,i=0;
+   for(r=0;r<8;++r)
+      for(g=0;g<8;++g)
+         for(b=0;b<4;++b){
+            pal[i][0]=(unsigned char)(r*255/7);
+            pal[i][1]=(unsigned char)(g*255/7);
+            pal[i][2]=(unsigned char)(b*255/3);
+            ++i;
+         }
+}
+
+static unsigned char stbiw__gif_index(int r,int g,int b)
+{
+   int ir=r*7/255;
+   int ig=g*7/255;
+   int ib=b*3/255;
+   return (unsigned char)((ir<<5)|(ig<<2)|ib);
+}
+
+static void stbiw__gif_write_code(unsigned char *out,int *bitpos,int code,int size)
+{
+   while(size--) {
+      out[*bitpos>>3]|=(code&1)<<(*bitpos&7);
+      ++*bitpos;
+      code>>=1;
+   }
+}
+
+static unsigned char *stbiw__gif_lzw(const unsigned char *ind,int count,int codesize,int *outlen)
+{
+   int i,bitpos=0;
+   int datasize=count*2+16;
+   unsigned char *out=(unsigned char*)STBIW_MALLOC(datasize);
+   if(!out) return NULL;
+   memset(out,0,datasize);
+   stbiw__gif_write_code(out,&bitpos,1<<codesize,codesize+1);
+   for(i=0;i<count;++i)
+      stbiw__gif_write_code(out,&bitpos,ind[i],codesize+1);
+   stbiw__gif_write_code(out,&bitpos,(1<<codesize)+1,codesize+1);
+   *outlen=(bitpos+7)>>3;
+   return out;
+}
+
+static int stbi_write_gif_core(stbi__write_context *s,int w,int h,int comp,const void *data)
+{
+   int x,y;
+   unsigned char *index;
+   unsigned char *lzw;
+   int lzw_len;
+   unsigned char palette[256][3];
+   int has_alpha = (comp == 4 || comp == 2);
+   if(w<=0||h<=0||data==NULL) return 0;
+   stbiw__gif_palette(palette);
+   index=(unsigned char*)STBIW_MALLOC(w*h);
+   if(!index) return 0;
+   for(y=0;y<h;++y){
+      int row=stbi__flip_vertically_on_write ? h-1-y : y;
+      const unsigned char *d=(const unsigned char*)data + row*w*comp;
+      for(x=0;x<w;++x){
+         const unsigned char *p=d + x*comp;
+         int r,g,b;
+         if(has_alpha && p[comp-1] < 128){
+            index[y*w+x] = 0;
+            palette[0][0] = palette[0][1] = palette[0][2] = 0;
+         } else {
+            if(comp==1||comp==2){r=g=b=p[0];}
+            else{r=p[0];g=p[1];b=p[2];}
+            index[y*w+x]=stbiw__gif_index(r,g,b);
+            if(has_alpha && index[y*w+x]==0) index[y*w+x]=1;
+         }
+      }
+   }
+   lzw=stbiw__gif_lzw(index,w*h,8,&lzw_len);
+   STBIW_FREE(index);
+   if(!lzw) return 0;
+   stbiw__writef(s,"111111",'G','I','F','8','9','a');
+   stbiw__writef(s,"22",w,h);
+   stbiw__write1(s,0xF7);
+   stbiw__write1(s,0);
+   stbiw__write1(s,0);
+   stbiw__write_flush(s);
+   s->func(s->context,palette,256*3);
+   if(has_alpha){
+      stbiw__putc(s,0x21); // extension
+      stbiw__putc(s,0xF9); // graphic control
+      stbiw__putc(s,4);    // size
+      stbiw__putc(s,1);    // transparent flag
+      stbiw__writef(s,"22",0,0); // delay
+      stbiw__putc(s,0);   // transparent color index
+      stbiw__putc(s,0);   // terminator
+   }
+   stbiw__write1(s,0x2C);
+   stbiw__writef(s,"2222",0,0,w,h);
+   stbiw__write1(s,0);
+   stbiw__write1(s,8);
+   stbiw__write_flush(s);
+   {
+      unsigned char *ptr=lzw; int len=lzw_len;
+      while(len>255){ stbiw__putc(s,255); s->func(s->context,ptr,255); ptr+=255; len-=255; }
+      stbiw__putc(s,(unsigned char)len); if(len) s->func(s->context,ptr,len); stbiw__putc(s,0);
+   }
+   STBIW_FREE(lzw);
+   stbiw__putc(s,0x3B);
+   return 1;
+}
+
+STBIWDEF int stbi_write_gif_to_func(stbi_write_func *func, void *context, int w, int h, int comp, const void *data)
+{
+   stbi__write_context s = { 0 };
+   stbi__start_write_callbacks(&s, func, context);
+   return stbi_write_gif_core(&s, w, h, comp, data);
+}
+
+#ifndef STBI_WRITE_NO_STDIO
+STBIWDEF int stbi_write_gif(char const *filename, int w, int h, int comp, const void *data)
+{
+   stbi__write_context s = { 0 };
+   if (stbi__start_write_file(&s,filename)) {
+      int r = stbi_write_gif_core(&s, w, h, comp, data);
+      stbi__end_write_file(&s);
+      return r;
+   } else
+      return 0;
+}
+#endif
+
 
 #ifndef STBI_WRITE_NO_STDIO
 STBIWDEF int stbi_write_jpg(char const *filename, int x, int y, int comp, const void *data, int quality)
@@ -1628,7 +1758,11 @@ STBIWDEF int stbi_write_jpg(char const *filename, int x, int y, int comp, const 
 #endif // STB_IMAGE_WRITE_IMPLEMENTATION
 
 /* Revision history
-      1.16  (2021-07-11)
+     1.18  (2024-01-02)
+            support GIF transparency and comply with GIF89a specs
+     1.17  (2024-01-01)
+            add basic GIF writer
+     1.16  (2021-07-11)
              make Deflate code emit uncompressed blocks when it would otherwise expand
              support writing BMPs with alpha channel
       1.15  (2020-07-13) unknown
