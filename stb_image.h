@@ -751,6 +751,8 @@ typedef unsigned char validate_uint32[sizeof(stbi__uint32)==4 ? 1 : -1];
 #define STBI__X64_TARGET
 #elif defined(__i386) || defined(_M_IX86)
 #define STBI__X86_TARGET
+#elif defined(__aarch64__) || defined(_M_ARM64)
+#define STBI__ARM64_TARGET
 #endif
 
 #if defined(__GNUC__) && defined(STBI__X86_TARGET) && !defined(__SSE2__) && !defined(STBI_NO_SIMD)
@@ -833,8 +835,14 @@ static int stbi__sse2_available(void)
 #endif
 
 // ARM NEON
-#if defined(STBI_NO_SIMD) && defined(STBI_NEON)
+#if defined(STBI_NO_SIMD)
+#if defined(STBI_NEON)
 #undef STBI_NEON
+#endif
+#elif defined(STBI__ARM64_TARGET)
+#if !defined(STBI_NEON)
+#define STBI_NEON
+#endif
 #endif
 
 #ifdef STBI_NEON
@@ -1103,7 +1111,7 @@ static int stbi__mul2sizes_valid(int a, int b)
    return a <= INT_MAX/b;
 }
 
-#if !defined(STBI_NO_JPEG) || !defined(STBI_NO_PNG) || !defined(STBI_NO_TGA) || !defined(STBI_NO_HDR)
+#if !defined(STBI_NO_JPEG) || !defined(STBI_NO_PNG) || !defined(STBI_NO_TGA) || !defined(STBI_NO_HDR) || !defined(STBI_NO_PNM)
 // returns 1 if "a*b + add" has no negative terms/factors and doesn't overflow
 static int stbi__mad2sizes_valid(int a, int b, int add)
 {
@@ -1127,7 +1135,7 @@ static int stbi__mad4sizes_valid(int a, int b, int c, int d, int add)
 }
 #endif
 
-#if !defined(STBI_NO_JPEG) || !defined(STBI_NO_PNG) || !defined(STBI_NO_TGA) || !defined(STBI_NO_HDR)
+#if !defined(STBI_NO_JPEG) || !defined(STBI_NO_PNG) || !defined(STBI_NO_TGA) || !defined(STBI_NO_HDR) || !defined(STBI_NO_PNM)
 // mallocs with size overflow checking
 static void *stbi__malloc_mad2(int a, int b, int add)
 {
@@ -8118,7 +8126,7 @@ static int      stbi__pnm_test(stbi__context *s)
    char p, t;
    p = (char) stbi__get8(s);
    t = (char) stbi__get8(s);
-   if (p != 'P' || (t != '5' && t != '6')) {
+   if (p != 'P' || (t != '4' && t != '5' && t != '6')) {
        stbi__rewind( s );
        return 0;
    }
@@ -8128,6 +8136,7 @@ static int      stbi__pnm_test(stbi__context *s)
 static void *stbi__pnm_load(stbi__context *s, int *x, int *y, int *comp, int req_comp, stbi__result_info *ri)
 {
    stbi_uc *out;
+   int bytes_per_channel;
    STBI_NOTUSED(ri);
 
    ri->bits_per_channel = stbi__pnm_info(s, (int *)&s->img_x, (int *)&s->img_y, (int *)&s->img_n);
@@ -8144,22 +8153,67 @@ static void *stbi__pnm_load(stbi__context *s, int *x, int *y, int *comp, int req
    if (!stbi__mad4sizes_valid(s->img_n, s->img_x, s->img_y, ri->bits_per_channel / 8, 0))
       return stbi__errpuc("too large", "PNM too large", STBI_ERROR_BAD_PNM);
 
-   out = (stbi_uc *) stbi__malloc_mad4(s->img_n, s->img_x, s->img_y, ri->bits_per_channel / 8, 0);
+   if (ri->bits_per_channel == 16)
+      bytes_per_channel = 2; 
+   else
+      bytes_per_channel = 1;
+   out = (stbi_uc *) stbi__malloc_mad4(s->img_n, s->img_x, s->img_y, bytes_per_channel, 0);
    if (!out) return stbi__errpuc("outofmem", "Out of memory", STBI_ERROR_OUT_OF_MEMORY);
-   if (!stbi__getn(s, out, s->img_n * s->img_x * s->img_y * (ri->bits_per_channel / 8))) {
-      STBI_FREE(out);
-      return stbi__errpuc("bad PNM", "PNM file truncated", STBI_ERROR_BAD_PNM);
-   }
+   if (ri->bits_per_channel == 1) {
+      stbi_uc *filebuf, *p_in, *p_out;
+      stbi__uint32 line, x, y, offset;
+      
+      ri->bits_per_channel = 8;
+      line = s->img_x/8+((s->img_x%8>0)?1:0);
+      
+      filebuf = (stbi_uc *) stbi__malloc_mad2(line, s->img_y, 0);
+      if (!filebuf) {
+         STBI_FREE(out);
+         return stbi__errpuc("outofmem", "Out of memory");
+      }
+      if (!stbi__getn(s, filebuf, line*s->img_y)) {
+         STBI_FREE(out);
+         STBI_FREE(filebuf);
+         return stbi__errpuc("bad PNM", "PNM file truncated");
+      }
+      
+      p_in = filebuf;
+      p_out = out;
+      offset = 8;
+      for(y = 0; y < s->img_y; y++) {
+         for(x = 0; x < s->img_x; x++) {
+            offset--;
+            *(p_out++) = ((*p_in>>offset)&0x1)?0:255;
+            if(offset == 0) {
+               offset = 8;
+               p_in++;
+            }
+         }
+         if(offset != 8) {
+            offset = 8;
+            p_in++;
+         }
+      }
 
-   if (ri->bits_per_channel == 16) {
-      // convert the image data from big-endian to platform-native
-      stbi__uint32 i;
-      stbi_uc *cur = out;
-      stbi__uint16 *out16 = (stbi__uint16*)out;
-      stbi__uint32 nsmp = s->img_n * s->img_x * s->img_y;
+      STBI_FREE(filebuf);
+   } else {
+      if (!stbi__getn(s, out, s->img_n * s->img_x * s->img_y * (ri->bits_per_channel / 8))) {
+         STBI_FREE(out);
+         return stbi__errpuc("bad PNM", "PNM file truncated", STBI_ERROR_BAD_PNM);
+      }
 
-      for (i = 0; i < nsmp; ++i, ++out16, cur += 2)
-         *out16 = (cur[0] << 8) | cur[1];
+      if (ri->bits_per_channel == 16) {
+         // convert the image data from big-endian to platform-native
+         stbi__uint32 i;
+         stbi_uc *cur = out;
+         stbi__uint16 *out16 = (stbi__uint16*)out;
+         stbi__uint32 nsmp = s->img_n * s->img_x * s->img_y;
+
+         for (i = 0; i < nsmp; ++i, ++out16, cur += 2) {
+            // Convert from BIG-ENDIAN
+            *out16 = (cur[0] << 8) | cur[1];
+         }
+      }
    }
 
    if (req_comp && req_comp != s->img_n) {
@@ -8225,12 +8279,12 @@ static int      stbi__pnm_info(stbi__context *s, int *x, int *y, int *comp)
    // Get identifier
    p = (char) stbi__get8(s);
    t = (char) stbi__get8(s);
-   if (p != 'P' || (t != '5' && t != '6')) {
+   if (p != 'P' || (t != '4' && t != '5' && t != '6')) {
        stbi__rewind(s);
        return 0;
    }
 
-   *comp = (t == '6') ? 3 : 1;  // '5' is 1-component .pgm; '6' is 3-component .ppm
+   *comp = (t == '6') ? 3 : 1;  // '4' is monochrome .pbm, '5' is 1-component .pgm; '6' is 3-component .ppm
 
    c = (char) stbi__get8(s);
    stbi__pnm_skip_whitespace(s, &c);
@@ -8243,6 +8297,8 @@ static int      stbi__pnm_info(stbi__context *s, int *x, int *y, int *comp)
    *y = stbi__pnm_getinteger(s, &c); // read height
    if (*y == 0)
        return stbi__err("invalid width", "PPM image header had zero or overflowing width", STBI_ERROR_BAD_PNM);
+   if (t == '4') 
+      return 1; // Header ends here for PBM files
    stbi__pnm_skip_whitespace(s, &c);
 
    maxv = stbi__pnm_getinteger(s, &c);  // read max value

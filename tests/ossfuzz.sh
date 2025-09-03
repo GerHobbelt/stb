@@ -23,6 +23,7 @@ unzip    $SRC/stbi/tga.zip    -d $SRC/stb/tests
 find $SRC/stb/tests -name "*.png" -o -name "*.jpg" -o -name "*.gif" \
                  -o -name "*.bmp" -o -name "*.tga" -o -name "*.TGA" \
                  -o -name "*.ppm" -o -name "*.pgm" -o -name "*.pic" \
+                 -o -name "*.pbm" \
     | xargs zip $OUT/stbi_read_fuzzer_seed_corpus.zip
 
 echo "" >> $SRC/stbi/gif.dict
