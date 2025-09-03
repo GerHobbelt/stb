@@ -545,9 +545,11 @@ STBIDEF void stbi_set_flip_vertically_on_load(int flag_true_if_should_flip);
 // as above, but only applies to images loaded on the thread that calls the function
 // this function is only available if your compiler supports thread-local variables;
 // calling it will fail to link if your compiler doesn't
+#ifdef STBI_THREAD_LOCAL
 STBIDEF void stbi_set_unpremultiply_on_load_thread(int flag_true_if_should_unpremultiply);
 STBIDEF void stbi_convert_iphone_png_to_rgb_thread(int flag_true_if_should_convert);
 STBIDEF void stbi_set_flip_vertically_on_load_thread(int flag_true_if_should_flip);
+#endif
 
 // ZLIB client - used by PNG, available for other purposes
 
@@ -1268,6 +1270,8 @@ static stbi_uc *stbi__convert_16_to_8(stbi__uint16 *orig, int w, int h, int chan
    reduced = (stbi_uc *) stbi__malloc(img_len);
    if (reduced == NULL) return stbi__errpuc("outofmem", "Out of memory", STBI_ERROR_OUT_OF_MEMORY);
 
+   #pragma GCC ivdep
+   #pragma clang loop vectorize(assume_safety)
    for (i = 0; i < img_len; ++i)
       reduced[i] = (stbi_uc)((orig[i] >> 8) & 0xFF); // top half of each byte is sufficient approx of 16->8 bit scaling
 
@@ -1861,11 +1865,11 @@ static unsigned char *stbi__convert_format(unsigned char *data, int img_n, int r
    }
 
    for (j=0; j < (int) y; ++j) {
-      unsigned char *src  = data + j * x * img_n   ;
-      unsigned char *dest = good + j * x * req_comp;
+      unsigned char * restrict src  = data + j * x * img_n   ;
+      unsigned char * restrict dest = good + j * x * req_comp;
 
       #define STBI__COMBO(a,b)  ((a)*8+(b))
-      #define STBI__CASE(a,b)   case STBI__COMBO(a,b): for(i=x-1; i >= 0; --i, src += a, dest += b)
+      #define STBI__CASE(a,b)   case STBI__COMBO(a,b): _Pragma("GCC ivdep") _Pragma("clang loop vectorize(assume_safety)") for(i=x-1; i >= 0; --i, src += a, dest += b)
       // convert source image with img_n components to one with req_comp components;
       // avoid switch per pixel, so use switch per scanline and massive macros
       switch (STBI__COMBO(img_n, req_comp)) {
@@ -1884,6 +1888,7 @@ static unsigned char *stbi__convert_format(unsigned char *data, int img_n, int r
          default: STBI_ASSERT(0); STBI_FREE(data); STBI_FREE(good); return stbi__errpuc("unsupported", "Unsupported format conversion", STBI_ERROR_UNSUPPORTED_CONVERSION);
       }
       #undef STBI__CASE
+      #undef STBI__COMBO
    }
 
    STBI_FREE(data);
@@ -1941,6 +1946,7 @@ static stbi__uint16 *stbi__convert_format16(stbi__uint16 *data, int img_n, int r
          default: STBI_ASSERT(0); STBI_FREE(data); STBI_FREE(good); return (stbi__uint16*) stbi__errpuc("unsupported", "Unsupported format conversion", STBI_ERROR_UNSUPPORTED_CONVERSION);
       }
       #undef STBI__CASE
+      #undef STBI__COMBO
    }
 
    STBI_FREE(data);
@@ -3167,6 +3173,8 @@ static int stbi__parse_entropy_coded_data(stbi__jpeg *z)
 static void stbi__jpeg_dequantize(short *data, stbi__uint16 *dequant)
 {
    int i;
+   #pragma GCC ivdep
+   #pragma clang loop vectorize(assume_safety)
    for (i=0; i < 64; ++i)
       data[i] *= dequant[i];
 }
@@ -3518,7 +3526,7 @@ static int stbi__decode_jpeg_image(stbi__jpeg *j)
          if (!stbi__process_scan_header(j)) return 0;
          if (!stbi__parse_entropy_coded_data(j)) return 0;
          if (j->marker == STBI__MARKER_none ) {
-         j->marker = stbi__skip_jpeg_junk_at_end(j);
+         j->marker = (unsigned char) stbi__skip_jpeg_junk_at_end(j);
             // if we reach eof without hitting a marker, stbi__get_marker() below will fail and we'll eventually return 0
          }
          m = stbi__get_marker(j);
@@ -3561,6 +3569,8 @@ static stbi_uc* stbi__resample_row_v_2(stbi_uc *out, stbi_uc *in_near, stbi_uc *
    // need to generate two samples vertically for every one in input
    int i;
    STBI_NOTUSED(hs);
+   #pragma GCC ivdep
+   #pragma clang loop vectorize(assume_safety)
    for (i=0; i < w; ++i)
       out[i] = stbi__div4(3*in_near[i] + in_far[i] + 2);
    return out;
@@ -3580,6 +3590,8 @@ static stbi_uc*  stbi__resample_row_h_2(stbi_uc *out, stbi_uc *in_near, stbi_uc 
 
    out[0] = input[0];
    out[1] = stbi__div4(input[0]*3 + input[1] + 2);
+   #pragma GCC ivdep
+   #pragma clang loop vectorize(assume_safety)
    for (i=1; i < w-1; ++i) {
       int n = 3*input[i]+2;
       out[i*2+0] = stbi__div4(n+input[i-1]);
@@ -3743,6 +3755,8 @@ static stbi_uc *stbi__resample_row_generic(stbi_uc *out, stbi_uc *in_near, stbi_
    int i,j;
    STBI_NOTUSED(in_far);
    for (i=0; i < w; ++i)
+      #pragma GCC ivdep
+      #pragma clang loop vectorize(assume_safety)
       for (j=0; j < hs; ++j)
          out[i*hs+j] = in_near[i];
    return out;
@@ -4979,11 +4993,12 @@ static int stbi__create_png_image(stbi__png *a, stbi_uc *image_data, stbi__uint3
             STBI_FREE(final);
             return 0;
          }
+         stbi__uint32 img_x = a->s->img_x;
          for (j=0; j < y; ++j) {
             for (i=0; i < x; ++i) {
                int out_y = j*yspc[p]+yorig[p];
                int out_x = i*xspc[p]+xorig[p];
-               memcpy(final + out_y*a->s->img_x*out_bytes + out_x*out_bytes,
+               memcpy(final + out_y*img_x*out_bytes + out_x*out_bytes,
                       a->out + (j*x+i)*out_bytes, out_bytes);
             }
          }

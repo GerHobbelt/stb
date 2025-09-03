@@ -55,6 +55,7 @@
 //       Rob Loach                  Cort Stratton
 //       Kenney Phillis Jr.         Brian Costabile
 //       Ken Voskuil (kaesve)       Yakov Galka
+//       Neil Bickford
 //       Nia Bickford
 //       Ashish Bhattarai
 //
@@ -441,6 +442,7 @@ int main(int arg, char **argv)
    // e.g. #define your own STBTT_ifloor/STBTT_iceil() to avoid math.h
    #ifndef STBTT_ifloor
    #include <math.h>
+   #define STBTT_floorf(x)   ((float) floor(x))
    #define STBTT_ifloor(x)   ((int) floor(x))
    #define STBTT_iceil(x)    ((int) ceil(x))
    #endif
@@ -2651,14 +2653,15 @@ static stbtt_int32 stbtt__GetGlyphGPOSInfoAdvance(const stbtt_fontinfo *info, in
 
 STBTT_DEF int  stbtt_GetGlyphKernAdvance(const stbtt_fontinfo *info, int g1, int g2)
 {
-   int xAdvance = 0;
+   if (info->gpos) {
+      int xAdvance = stbtt__GetGlyphGPOSInfoAdvance(info, g1, g2);
+      if (xAdvance) return xAdvance;
+   }
 
-   if (info->gpos)
-      xAdvance += stbtt__GetGlyphGPOSInfoAdvance(info, g1, g2);
-   else if (info->kern)
-      xAdvance += stbtt__GetGlyphKernInfoAdvance(info, g1, g2);
+   if (info->kern)
+      return stbtt__GetGlyphKernInfoAdvance(info, g1, g2);
 
-   return xAdvance;
+   return 0;
 }
 
 STBTT_DEF int  stbtt_GetCodepointKernAdvance(const stbtt_fontinfo *info, int ch1, int ch2)
@@ -4516,8 +4519,8 @@ STBTT_DEF void stbtt_GetPackedQuad(const stbtt_packedchar *chardata, int pw, int
    const stbtt_packedchar *b = chardata + char_index;
 
    if (align_to_integer) {
-      float x = (float) STBTT_ifloor((*xpos + b->xoff) + 0.5f);
-      float y = (float) STBTT_ifloor((*ypos + b->yoff) + 0.5f);
+      float x = STBTT_floorf((*xpos + b->xoff) + 0.5f);
+      float y = STBTT_floorf((*ypos + b->yoff) + 0.5f);
       q->x0 = x;
       q->y0 = y;
       q->x1 = x + b->xoff2 - b->xoff;
