@@ -557,6 +557,22 @@ STBIDEF char *stbi_zlib_decode_noheader_malloc(const char *buffer, int len, int 
 STBIDEF int   stbi_zlib_decode_noheader_buffer(char *obuffer, int olen, const char *ibuffer, int ilen);
 
 
+typedef struct {
+   int width;
+   int height;
+   int comp;
+   void *handle;
+} stbi_gif_context;
+
+STBIDEF stbi_gif_context stbi_gif_init_from_callbacks(stbi_io_callbacks const *clbk, void *user);
+STBIDEF stbi_gif_context stbi_gif_init_from_memory(stbi_uc const *buffer, int len);
+#ifndef STBI_NO_STDIO
+STBIDEF stbi_gif_context stbi_gif_init_from_file(FILE *f);
+#endif
+STBIDEF void stbi_gif_free(stbi_gif_context *gif);
+STBIDEF void stbi_gif_reset(stbi_gif_context *gif);
+STBIDEF stbi_uc *stbi_gif_decode(stbi_gif_context *gif, int *x, int *y, int *delay_in_ms, int desired_channels);
+
 #ifdef __cplusplus
 }
 #endif
@@ -7159,6 +7175,139 @@ static void *stbi__gif_load(stbi__context *s, int *x, int *y, int *comp, int req
 static int stbi__gif_info(stbi__context *s, int *x, int *y, int *comp)
 {
    return stbi__gif_info_raw(s,x,y,comp);
+}
+
+
+typedef struct {
+   stbi__context ctx;
+   stbi__gif gif;
+   stbi_uc *prev_frame;
+   int prev_frame_delay;
+   int frame_number;
+   int num_frames;
+   int end_of_frame;
+} stbi__gif_decoder;
+static stbi_gif_context stbi__gif_init(stbi__gif_decoder *d) {
+   stbi_gif_context res = {0};
+   int is_gif = 0;
+   if (d) {
+      res.handle = d;
+      is_gif = stbi__gif_header(&d->ctx, &d->gif, &res.comp, 1);
+      stbi__rewind(&d->ctx);      
+   }
+   if (!is_gif) {
+      stbi_gif_free(&res);
+      res.width = res.height = -1;
+      return res;
+   }
+   res.width = d->gif.w;
+   res.height = d->gif.h;
+   return res;
+}
+static void stbi__gif_free(stbi__gif_decoder *d) {
+   STBI_FREE(d->gif.out);
+   STBI_FREE(d->gif.history);
+   STBI_FREE(d->gif.background);
+   STBI_FREE(d->prev_frame);
+   d->gif.out = NULL;
+   d->gif.history = NULL;
+   d->gif.background = NULL;
+   d->prev_frame = NULL;
+}
+stbi_gif_context stbi_gif_init_from_callbacks(stbi_io_callbacks const *clbk, void *user) {
+   stbi__gif_decoder *d = (stbi__gif_decoder *) stbi__malloc(sizeof(stbi__gif_decoder));
+   if (d) {
+      memset(d, 0, sizeof(*d));
+      stbi__start_callbacks(&d->ctx, (stbi_io_callbacks *) clbk, user);      
+   }
+   return stbi__gif_init(d);
+}
+stbi_gif_context stbi_gif_init_from_memory(stbi_uc const *buffer, int len) {
+   stbi__gif_decoder *d = (stbi__gif_decoder *) stbi__malloc(sizeof(stbi__gif_decoder));
+   if (d) {
+      memset(d, 0, sizeof(*d));
+      stbi__start_mem(&d->ctx, buffer, len);      
+   }
+   return stbi__gif_init(d);
+}
+#ifndef STBI_NO_STDIO
+stbi_gif_context stbi_gif_init_from_file(FILE *f) {
+   stbi__gif_decoder *d = (stbi__gif_decoder *) stbi__malloc(sizeof(stbi__gif_decoder));
+   if (d) {
+      memset(d, 0, sizeof(*d));
+      stbi__start_file(&d->ctx, f);
+   }
+   return stbi__gif_init(d);
+}
+#endif
+void stbi_gif_free(stbi_gif_context *gif) {
+   if (gif && gif->handle) {
+      stbi__gif_decoder *d = (stbi__gif_decoder *) gif->handle;
+      stbi__gif_free(d);
+      STBI_FREE(gif->handle);
+      gif->handle = NULL;
+   }
+}
+void stbi_gif_reset(stbi_gif_context *gif) {
+   stbi__gif_decoder *d = (stbi__gif_decoder *) gif->handle;
+   if (d->num_frames > 2) {
+      stbi__gif_free(d);
+      memset(&d->gif, 0, sizeof(d->gif));
+      stbi__rewind(&d->ctx);
+      d->num_frames = 0;
+      d->end_of_frame = 0;
+   }
+   d->frame_number = 0;
+}
+stbi_uc *stbi_gif_decode(stbi_gif_context *gif, int *x, int *y, int *delay_in_ms, int desired_channels) {
+   stbi__gif_decoder *d = (stbi__gif_decoder *) gif->handle;
+   size_t len = gif->width * gif->height * 4;   
+   if (d->num_frames <= 2 && d->frame_number < d->num_frames) {
+      stbi_uc *res = (stbi_uc *) stbi__malloc(len);
+      if (!res) {
+         return stbi__errpuc("outofmem", "Out of memory");
+      }
+      memcpy(res, d->frame_number == 0 && d->prev_frame ? d->prev_frame : d->gif.out, len);
+      *x = d->gif.w;
+      *y = d->gif.h;
+      *delay_in_ms = d->frame_number == 0 && d->prev_frame ? d->prev_frame_delay : d->gif.delay;
+      d->frame_number++;
+      return res;
+   }
+   if (d->end_of_frame)
+      return NULL;
+   stbi_uc *prev = NULL;
+   int prev_delay = 0;
+   if (d->prev_frame) {
+      prev = (stbi_uc *) stbi__malloc(len);
+      memcpy(prev, d->gif.out, len);
+      if (!prev) {
+         return stbi__errpuc("outofmem", "Out of memory");
+      }
+      prev_delay = d->gif.delay;
+   }
+   stbi_uc *dat = stbi__gif_load_next(&d->ctx, &d->gif, &gif->comp, desired_channels, d->prev_frame);
+   if (dat == (stbi_uc *) &d->ctx) {
+      STBI_FREE(prev);
+      d->end_of_frame = 1;
+      return NULL;
+   }
+   *x = d->gif.w;
+   *y = d->gif.h;
+   *delay_in_ms = d->gif.delay;
+   stbi_uc *res = d->prev_frame;
+   d->prev_frame = prev;
+   d->prev_frame_delay = prev_delay;
+   if (!res) {
+      res = (stbi_uc *) stbi__malloc(len);
+      if (!res) {
+         return stbi__errpuc("outofmem", "Out of memory");
+      }
+   }
+   memcpy(res, dat, len);
+   d->frame_number++;
+   d->num_frames = d->frame_number;
+   return res;
 }
 #endif
 

@@ -56,6 +56,7 @@
 //       Kenney Phillis Jr.         Brian Costabile
 //       Ken Voskuil (kaesve)       Yakov Galka
 //       Nia Bickford
+//       Ashish Bhattarai
 //
 // VERSION HISTORY
 //
@@ -423,7 +424,6 @@ int main(int arg, char **argv)
 ////   of C library functions used by stb_truetype, e.g. if you don't
 ////   link with the C runtime library.
 
-#ifdef STB_TRUETYPE_IMPLEMENTATION
    // #define your own (u)stbtt_int8/16/32 before including to override this
    #ifndef stbtt_uint8
    typedef unsigned char   stbtt_uint8;
@@ -434,6 +434,7 @@ int main(int arg, char **argv)
    typedef signed   int    stbtt_int32;
    #endif
 
+#ifdef STB_TRUETYPE_IMPLEMENTATION
    typedef char stbtt__check_size32[sizeof(stbtt_int32)==4 ? 1 : -1];
    typedef char stbtt__check_size16[sizeof(stbtt_int16)==2 ? 1 : -1];
 
@@ -711,6 +712,37 @@ STBTT_DEF int stbtt_GetFontOffsetForIndex(const unsigned char *data, int index);
 // file will only define one font and it always be at offset 0, so it will
 // return '0' for index 0, and -1 for all other indices.
 
+struct stbtt_colr_info
+{
+   stbtt_uint16 version;
+   stbtt_uint16 numBaseGlyphRecords;
+   stbtt_uint32 baseGlyphRecordsOffset;
+   stbtt_uint32 layerRecordsOffset;
+   stbtt_uint16 numLayerRecords;
+};
+
+struct stbtt_cpal_info {
+   stbtt_uint16 version;
+   stbtt_uint16 numPaletteEntries;
+   stbtt_uint16 numPalettes;
+   stbtt_uint16 numColorRecords;
+   stbtt_uint32 colorRecordsArrayOffset;
+};
+
+typedef struct stbtt_colr_glyph {
+   stbtt_uint16 firstLayerIndex;
+   stbtt_uint16 numLayers;
+} stbtt_colr_glyph;
+
+typedef struct stbtt_colr_glyph_layer {
+   stbtt_uint16 glyphID;
+   stbtt_uint16 paletteIndex;
+} stbtt_colr_glyph_layer;
+
+typedef struct stbtt_palette_color {
+   stbtt_uint8 blue, green, red, alpha;
+} stbtt_palette_color;
+
 // The following structure is defined publicly so you can declare one on
 // the stack or as a global or etc, but you should treat it as opaque.
 struct stbtt_fontinfo
@@ -721,7 +753,7 @@ struct stbtt_fontinfo
 
    int numGlyphs;                     // number of glyphs, needed for range checking
 
-   int loca,head,glyf,hhea,hmtx,kern,gpos,svg; // table locations as offset from start of .ttf
+   int loca,head,glyf,hhea,hmtx,kern,gpos,svg,colr,cpal; // table locations as offset from start of .ttf
    int index_map;                     // a cmap mapping for our chosen character encoding
    int indexToLocFormat;              // format needed to map from glyph index to glyph
 
@@ -731,6 +763,8 @@ struct stbtt_fontinfo
    stbtt__buf subrs;                  // private charstring subroutines index
    stbtt__buf fontdicts;              // array of font dicts
    stbtt__buf fdselect;               // map from glyph to fontdict
+   struct stbtt_colr_info colr_info;
+   struct stbtt_cpal_info cpal_info;
 };
 
 STBTT_DEF int stbtt_InitFont(stbtt_fontinfo *info, const unsigned char *data, int offset);
@@ -865,6 +899,11 @@ STBTT_DEF int stbtt_GetCodepointSVG(const stbtt_fontinfo *info, int unicode_code
 STBTT_DEF int stbtt_GetGlyphSVG(const stbtt_fontinfo *info, int gl, const char **svg);
 // fills svg with the character's SVG data.
 // returns data size or 0 if SVG not found.
+
+STBTT_DEF int stbtt_GetNumPalettes(stbtt_fontinfo *info, int *num_colors);
+STBTT_DEF int stbtt_GetPaletteColor(stbtt_fontinfo *info, int palette_index, int color_index, stbtt_palette_color *res);
+STBTT_DEF int stbtt_GetGlyphNumLayers(stbtt_fontinfo *info, int glyph, stbtt_colr_glyph *res);
+STBTT_DEF int stbtt_GetGlyphLayer(stbtt_fontinfo *info, const stbtt_colr_glyph *glyph, int layer_index, stbtt_colr_glyph_layer *res);
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -1462,7 +1501,7 @@ static int stbtt_InitFont_internal(stbtt_fontinfo *info, unsigned char *data, in
    else
       info->numGlyphs = 0xffff;
 
-   info->svg = -1;
+   info->svg = info->colr = info->cpal = -1;
 
    // find a cmap encoding table we understand *now* to avoid searching
    // later. (todo: could make this installable)
@@ -1628,7 +1667,7 @@ static int stbtt__GetGlyphInfoT2(const stbtt_fontinfo *info, int glyph_index, in
 STBTT_DEF int stbtt_GetGlyphBox(const stbtt_fontinfo *info, int glyph_index, int *x0, int *y0, int *x1, int *y1)
 {
    if (info->cff.size) {
-      stbtt__GetGlyphInfoT2(info, glyph_index, x0, y0, x1, y1);
+      return stbtt__GetGlyphInfoT2(info, glyph_index, x0, y0, x1, y1) != 0;
    } else {
       int g = stbtt__GetGlyfOffset(info, glyph_index);
       if (g < 0) return 0;
@@ -1866,11 +1905,11 @@ static int stbtt__GetGlyphShapeTT(const stbtt_fontinfo *info, int glyph_index, s
                stbtt_vertex* v = &comp_verts[i];
                stbtt_vertex_type x,y;
                x=v->x; y=v->y;
-               v->x = (stbtt_vertex_type)(m * (mtx[0]*x + mtx[2]*y + mtx[4]));
-               v->y = (stbtt_vertex_type)(n * (mtx[1]*x + mtx[3]*y + mtx[5]));
+               v->x = (stbtt_vertex_type)(mtx[0]*x + mtx[2]*y + mtx[4] * m);
+               v->y = (stbtt_vertex_type)(mtx[1]*x + mtx[3]*y + mtx[5] * n);
                x=v->cx; y=v->cy;
-               v->cx = (stbtt_vertex_type)(m * (mtx[0]*x + mtx[2]*y + mtx[4]));
-               v->cy = (stbtt_vertex_type)(n * (mtx[1]*x + mtx[3]*y + mtx[5]));
+               v->cx = (stbtt_vertex_type)(mtx[0]*x + mtx[2]*y + mtx[4] * m);
+               v->cy = (stbtt_vertex_type)(mtx[1]*x + mtx[3]*y + mtx[5] * n);
             }
             // Append vertices.
             tmp = (stbtt_vertex*)STBTT_malloc((num_vertices+comp_num_verts)*sizeof(stbtt_vertex), info->userdata);
@@ -2682,14 +2721,25 @@ STBTT_DEF stbtt_uint8 *stbtt_FindSVGDoc(const stbtt_fontinfo *info, int gl)
    int i;
    stbtt_uint8 *data = info->data;
    stbtt_uint8 *svg_doc_list = data + stbtt__get_svg((stbtt_fontinfo *) info);
+   if (info->svg == 0)
+      return 0;
 
    int numEntries = ttUSHORT(svg_doc_list);
    stbtt_uint8 *svg_docs = svg_doc_list + 2;
 
-   for(i=0; i<numEntries; i++) {
-      stbtt_uint8 *svg_doc = svg_docs + (12 * i);
-      if ((gl >= ttUSHORT(svg_doc)) && (gl <= ttUSHORT(svg_doc + 2)))
+   // opentype/spec/svg: Records must be sorted in increasing startGlyphID order.
+   int j = numEntries;
+   i = 0;
+   while (i < j) {
+      int k = i + (j - i) / 2;
+      stbtt_uint8 *svg_doc = svg_docs + (12 * k);
+      if (gl < ttUSHORT(svg_doc)) {
+         j = k;
+      } else if (gl > ttUSHORT(svg_doc + 2)) {
+         i = k + 1;
+      } else {
          return svg_doc;
+      }
    }
    return 0;
 }
@@ -2714,6 +2764,103 @@ STBTT_DEF int stbtt_GetGlyphSVG(const stbtt_fontinfo *info, int gl, const char *
 STBTT_DEF int stbtt_GetCodepointSVG(const stbtt_fontinfo *info, int unicode_codepoint, const char **svg)
 {
    return stbtt_GetGlyphSVG(info, stbtt_FindGlyphIndex(info, unicode_codepoint), svg);
+}
+
+static void stbtt__get_cpal(stbtt_fontinfo *info)
+{
+   if (info->cpal >= 0)
+      return;
+   stbtt_uint32 i = stbtt__find_table(info->data, info->fontstart, "CPAL");
+   if (i) {
+      info->cpal = i;
+      stbtt_uint8 *dat = info->data + i;
+      struct stbtt_cpal_info *ci = &info->cpal_info;
+      ci->version = ttUSHORT(dat);
+      ci->numPaletteEntries = ttUSHORT(dat + 2);
+      ci->numPalettes = ttUSHORT(dat + 4);
+      ci->numColorRecords = ttUSHORT(dat + 6);
+      ci->colorRecordsArrayOffset = ttULONG(dat + 8);
+   } else {
+      info->cpal = 0;
+   }
+}
+
+STBTT_DEF int stbtt_GetNumPalettes(stbtt_fontinfo *info, int *num_colors) 
+{
+   stbtt__get_cpal(info);
+   if (info->cpal <= 0)
+      return 0;
+   if (num_colors)
+      *num_colors = info->cpal_info.numPaletteEntries;
+   return info->cpal_info.numPalettes;
+}
+
+STBTT_DEF int stbtt_GetPaletteColor(stbtt_fontinfo *info, int palette_index, int color_index, stbtt_palette_color *res)
+{
+   stbtt__get_cpal(info);
+   if (info->cpal <= 0)
+      return 0;
+   if (palette_index < 0 || palette_index > info->cpal_info.numPalettes || color_index < 0 || color_index > info->cpal_info.numPaletteEntries)
+      return 0;
+   stbtt_uint16 index = ttUSHORT(info->data + info->cpal + 12 + palette_index * sizeof(stbtt_uint16));
+   memcpy(res, info->data + info->cpal + info->cpal_info.colorRecordsArrayOffset + (index + color_index) * sizeof(stbtt_palette_color), sizeof(stbtt_palette_color));
+   return 1;
+}
+
+static void stbtt__get_colr(stbtt_fontinfo *info)
+{
+   if (info->colr >= 0)
+      return;
+   stbtt_uint32 i = stbtt__find_table(info->data, info->fontstart, "COLR");
+   if (i) {
+      info->colr = i;
+      stbtt_uint8 *dat = info->data + i;
+      struct stbtt_colr_info *ci = &info->colr_info;
+      ci->version = ttUSHORT(dat);
+      ci->numBaseGlyphRecords = ttUSHORT(dat + 2);
+      ci->baseGlyphRecordsOffset = i + ttULONG(dat + 4);
+      ci->layerRecordsOffset = i + ttULONG(dat + 8);
+      ci->numLayerRecords = ttUSHORT(dat + 12);
+   } else {
+      info->colr = 0;
+   }
+}
+
+STBTT_DEF int stbtt_GetGlyphNumLayers(stbtt_fontinfo *info, int glyph, stbtt_colr_glyph *res)
+{
+   stbtt__get_colr(info);
+   if (info->colr <= 0 || info->colr_info.numBaseGlyphRecords <= 0) {
+      return 0;
+   }
+   stbtt_uint8 *dat = info->data + info->colr_info.baseGlyphRecordsOffset;
+   int i = 0, j = info->colr_info.numBaseGlyphRecords;
+   while (i < j) {
+      int k = i + (j - i) / 2;
+      stbtt_uint8 *item_dat = dat + k * sizeof(stbtt_uint16) * 3;
+      stbtt_uint16 glyphID = ttUSHORT(item_dat);
+      if (glyphID > glyph) {
+         j = k;
+      } else if (glyphID < glyph) {
+         i = k + 1;
+      } else {
+         res->firstLayerIndex = ttUSHORT(item_dat + 2);
+         res->numLayers = ttUSHORT(item_dat + 4);
+         return (int)res->firstLayerIndex + res->numLayers <= info->colr_info.numLayerRecords;
+      }
+   }
+   return 0;
+}
+
+STBTT_DEF int stbtt_GetGlyphLayer(stbtt_fontinfo *info, const stbtt_colr_glyph *glyph, int layer_index, stbtt_colr_glyph_layer *res)
+{
+   stbtt__get_colr(info);
+   if (info->colr <= 0 || info->colr_info.numLayerRecords <= 0 || layer_index < 0 || layer_index >= glyph->numLayers || glyph->firstLayerIndex + layer_index >= info->colr_info.numLayerRecords) {
+      return 0;
+   }
+   stbtt_uint8 *dat = info->data + info->colr_info.layerRecordsOffset + (glyph->firstLayerIndex + layer_index) * sizeof(stbtt_uint16) * 2;
+   res->glyphID = ttUSHORT(dat);
+   res->paletteIndex = ttUSHORT(dat + 2);
+   return 1;
 }
 
 //////////////////////////////////////////////////////////////////////////////
