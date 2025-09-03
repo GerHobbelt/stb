@@ -439,6 +439,7 @@ typedef struct
 //
 
 STBIDEF stbi_uc *stbi_load_from_memory   (stbi_uc           const *buffer, int len   , int *x, int *y, int *channels_in_file, int desired_channels);
+STBIDEF stbi_uc *stbi_load_from_memory_l16(stbi_uc          const *buffer, int len   , int *x, int *y, int *channels_in_file, int desired_channels);
 STBIDEF stbi_uc *stbi_load_from_callbacks(stbi_io_callbacks const *clbk  , void *user, int *x, int *y, int *channels_in_file, int desired_channels);
 
 #ifndef STBI_NO_STDIO
@@ -1261,7 +1262,7 @@ static void *stbi__load_main(stbi__context *s, int *x, int *y, int *comp, int re
    return stbi__errpuc("unknown image type", "Image not of any known type, or corrupt", STBI_ERROR_UNSUPPORTED_IMAGE_TYPE);
 }
 
-static stbi_uc *stbi__convert_16_to_8(stbi__uint16 *orig, int w, int h, int channels)
+static stbi_uc *stbi__convert_16_to_8(stbi__uint16 *orig, int w, int h, int channels, bool from16_linear)
 {
    int i;
    int img_len = w * h * channels;
@@ -1270,10 +1271,22 @@ static stbi_uc *stbi__convert_16_to_8(stbi__uint16 *orig, int w, int h, int chan
    reduced = (stbi_uc *) stbi__malloc(img_len);
    if (reduced == NULL) return stbi__errpuc("outofmem", "Out of memory", STBI_ERROR_OUT_OF_MEMORY);
 
-   #pragma GCC ivdep
-   #pragma clang loop vectorize(assume_safety)
-   for (i = 0; i < img_len; ++i)
-      reduced[i] = (stbi_uc)((orig[i] >> 8) & 0xFF); // top half of each byte is sufficient approx of 16->8 bit scaling
+
+   if (from16_linear) {
+       //convert 16-bit linear values to 8-bit sRGB
+	   #pragma GCC ivdep
+	   #pragma clang loop vectorize(assume_safety)
+       for (i = 0; i < img_len; ++i) {
+           float v = pow(float(orig[i]) * (1.0f / 65536), 1 / 2.2f);
+           reduced[i] = (stbi_uc)(v * 255);
+       }
+   }
+   else {
+	   #pragma GCC ivdep
+	   #pragma clang loop vectorize(assume_safety)
+       for (i = 0; i < img_len; ++i)
+           reduced[i] = (stbi_uc)((orig[i] >> 8) & 0xFF); // top half of each byte is sufficient approx of 16->8 bit scaling
+   }
 
    STBI_FREE(orig);
    return reduced;
@@ -1333,7 +1346,7 @@ static void stbi__vertical_flip_slices(void *image, int w, int h, int z, int byt
 }
 #endif
 
-static unsigned char *stbi__load_and_postprocess_8bit(stbi__context *s, int *x, int *y, int *comp, int req_comp)
+static unsigned char *stbi__load_and_postprocess_8bit(stbi__context *s, int *x, int *y, int *comp, int req_comp, bool from16_linear)
 {
    stbi__result_info ri;
    void *result = stbi__load_main(s, x, y, comp, req_comp, &ri, 8);
@@ -1345,7 +1358,7 @@ static unsigned char *stbi__load_and_postprocess_8bit(stbi__context *s, int *x, 
    STBI_ASSERT(ri.bits_per_channel == 8 || ri.bits_per_channel == 16);
 
    if (ri.bits_per_channel != 8) {
-      stbi_uc *converted = stbi__convert_16_to_8((stbi__uint16 *) result, *x, *y, req_comp == 0 ? *comp : req_comp);
+      stbi_uc *converted = stbi__convert_16_to_8((stbi__uint16 *) result, *x, *y, req_comp == 0 ? *comp : req_comp, from16_linear);
       if (converted == NULL) {
          STBI_FREE(result);
          return NULL;
@@ -1464,7 +1477,7 @@ STBIDEF stbi_uc *stbi_load_from_file(FILE *f, int *x, int *y, int *comp, int req
    unsigned char *result;
    stbi__context s;
    stbi__start_file(&s,f);
-   result = stbi__load_and_postprocess_8bit(&s,x,y,comp,req_comp);
+   result = stbi__load_and_postprocess_8bit(&s,x,y,comp,req_comp,false);
    if (result) {
       // need to 'unget' all the characters in the IO buffer
       if (fseek(f, -(int)(s.img_buffer_end - s.img_buffer), SEEK_CUR) != 0) {
@@ -1522,18 +1535,27 @@ STBIDEF stbi_us *stbi_load_16_from_callbacks(stbi_io_callbacks const *clbk, void
    return stbi__load_and_postprocess_16bit(&s,x,y,channels_in_file,desired_channels);
 }
 
+//assumes 16-bit source is sRGB
 STBIDEF stbi_uc *stbi_load_from_memory(stbi_uc const *buffer, int len, int *x, int *y, int *comp, int req_comp)
 {
    stbi__context s;
    stbi__start_mem(&s,buffer,len);
-   return stbi__load_and_postprocess_8bit(&s,x,y,comp,req_comp);
+   return stbi__load_and_postprocess_8bit(&s,x,y,comp,req_comp, false);
+}
+
+//assumes 16-bit source is linear, converts to 8-bit sRGB
+STBIDEF stbi_uc* stbi_load_from_memory_l16(stbi_uc const* buffer, int len, int* x, int* y, int* comp, int req_comp)
+{
+    stbi__context s;
+    stbi__start_mem(&s, buffer, len);
+    return stbi__load_and_postprocess_8bit(&s, x, y, comp, req_comp, true);
 }
 
 STBIDEF stbi_uc *stbi_load_from_callbacks(stbi_io_callbacks const *clbk, void *user, int *x, int *y, int *comp, int req_comp)
 {
    stbi__context s;
    stbi__start_callbacks(&s, (stbi_io_callbacks *) clbk, user);
-   return stbi__load_and_postprocess_8bit(&s,x,y,comp,req_comp);
+   return stbi__load_and_postprocess_8bit(&s,x,y,comp,req_comp,false);
 }
 
 #ifndef STBI_NO_GIF
@@ -1566,7 +1588,7 @@ static float *stbi__loadf_main(stbi__context *s, int *x, int *y, int *comp, int 
       return hdr_data;
    }
    #endif
-   data = stbi__load_and_postprocess_8bit(s, x, y, comp, req_comp);
+   data = stbi__load_and_postprocess_8bit(s, x, y, comp, req_comp,false);
    if (data)
       return stbi__ldr_to_hdr(data, *x, *y, req_comp ? req_comp : *comp);
    return stbi__errpf("unknown image type", "Image not of any known type, or corrupt", STBI_ERROR_UNSUPPORTED_IMAGE_TYPE);
