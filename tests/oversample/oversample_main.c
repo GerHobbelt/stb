@@ -50,7 +50,7 @@ void load_fonts(void)
    f = fopen(stb_wingraph_commandline, "rb");
    if (!f) {
       if (win == NULL)
-         sprintf(filename, "arial.ttf", win);
+         sprintf(filename, "arial.ttf");
       else
          sprintf(filename, "%s/fonts/arial.ttf", win);
       f = fopen(filename, "rb");
@@ -111,7 +111,7 @@ void drawBoxTC(float x0, float y0, float x1, float y1, float s0, float t0, float
 
 int integer_align;
 
-void print(float x, float y, int font, char *text)
+void print(float x, float y, int font, const char *text)
 {
    glEnable(GL_TEXTURE_2D);
    glBindTexture(GL_TEXTURE_2D, font_tex);
