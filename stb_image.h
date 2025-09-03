@@ -88,6 +88,7 @@ RECENT REVISION HISTORY:
     Thatcher Ulrich (psd)                  Nicolas Guillemot (vertical flip)
     Ken Miller (pgm, ppm)                  Richard Mitton (16-bit PSD)
     github:urraka (animated gif)           Junggon Kim (PNM comments)
+    Scott Johnson (rgb)
     Christopher Forseth (animated gif)     Daniel Gibson (16-bit TGA)
                                            Michael "milkmull" Mullins (error codes)
                                            socks-the-fox (16-bit PNG)
@@ -340,6 +341,7 @@ RECENT REVISION HISTORY:
 //        STBI_NO_JPEG
 //        STBI_NO_PNG
 //        STBI_NO_BMP
+//        STBI_NO_SGI
 //        STBI_NO_PSD
 //        STBI_NO_TGA
 //        STBI_NO_GIF
@@ -354,6 +356,7 @@ RECENT REVISION HISTORY:
 //        STBI_ONLY_JPEG
 //        STBI_ONLY_PNG
 //        STBI_ONLY_BMP
+//        STBI_ONLY_SGI
 //        STBI_ONLY_PSD
 //        STBI_ONLY_TGA
 //        STBI_ONLY_GIF
@@ -587,7 +590,7 @@ STBIDEF stbi_uc *stbi_gif_decode(stbi_gif_context *gif, int *x, int *y, int *del
 #if defined(STBI_ONLY_JPEG) || defined(STBI_ONLY_PNG) || defined(STBI_ONLY_BMP) \
   || defined(STBI_ONLY_TGA) || defined(STBI_ONLY_GIF) || defined(STBI_ONLY_PSD) \
   || defined(STBI_ONLY_HDR) || defined(STBI_ONLY_PIC) || defined(STBI_ONLY_PNM) \
-  || defined(STBI_ONLY_ZLIB)
+  || defined(STBI_ONLY_ZLIB)|| defined(STBI_ONLY_SGI)
    #ifndef STBI_ONLY_JPEG
    #define STBI_NO_JPEG
    #endif
@@ -596,6 +599,9 @@ STBIDEF stbi_uc *stbi_gif_decode(stbi_gif_context *gif, int *x, int *y, int *del
    #endif
    #ifndef STBI_ONLY_BMP
    #define STBI_NO_BMP
+   #endif
+   #ifndef STBI_ONLY_SGI
+   #define STBI_NO_SGI
    #endif
    #ifndef STBI_ONLY_PSD
    #define STBI_NO_PSD
@@ -962,6 +968,12 @@ static void    *stbi__bmp_load(stbi__context *s, int *x, int *y, int *comp, int 
 static int      stbi__bmp_info(stbi__context *s, int *x, int *y, int *comp);
 #endif
 
+#ifndef STBI_NO_SGI
+static int      stbi__sgi_test(stbi__context *s);
+static void    *stbi__sgi_load(stbi__context *s, int *x, int *y, int *comp, int req_comp, stbi__result_info *ri);
+static int      stbi__sgi_info(stbi__context *s, int *x, int *y, int *comp);
+#endif
+
 #ifndef STBI_NO_TGA
 static int      stbi__tga_test(stbi__context *s);
 static void    *stbi__tga_load(stbi__context *s, int *x, int *y, int *comp, int req_comp, stbi__result_info *ri);
@@ -1206,6 +1218,9 @@ static void *stbi__load_main(stbi__context *s, int *x, int *y, int *comp, int re
    #ifndef STBI_NO_BMP
    if (stbi__bmp_test(s))  return stbi__bmp_load(s,x,y,comp,req_comp, ri);
    #endif
+   #ifndef STBI_NO_SGI
+   if (stbi__sgi_test(s)) return stbi__sgi_load(s,x,y, comp, req_comp, ri);
+   #endif 
    #ifndef STBI_NO_GIF
    if (stbi__gif_test(s))  return stbi__gif_load(s,x,y,comp,req_comp, ri);
    #endif
@@ -5809,6 +5824,319 @@ static void *stbi__bmp_load(stbi__context *s, int *x, int *y, int *comp, int req
 }
 #endif
 
+// Silicon Graphics (SGI) Textures. This code loads SGI textures in the RGB and RGBA formats.
+// The intensity maps with extensions .int and .inta did not even have the image dimensions
+// in them so they were skipped. https://paulbourke.net/dataformats/sgirgb/
+
+#ifndef STBI_NO_SGI
+
+static int stbi__sgi_test(stbi__context *s) {
+    int r = stbi__get16be(s);
+    stbi__rewind(s);
+    return r == 0x01DA;
+}
+
+static void stbi__sgi_rle_decode(stbi_uc *dst, int dst_length, stbi__context* s)
+{
+    while (true) {
+        stbi_uc action = stbi__get8(s);
+        stbi_uc count = action & 0x7F;
+
+        if (count == 0)
+            break;
+
+        if (action & 0x80) {
+            // Copy literal bytes
+            if (count <= dst_length) {
+               for (int i = 0; i < count; ++i) {
+                  *dst++ = stbi__get8(s);
+               }
+            }
+        } else {
+            // Run of repeated bytes
+            stbi_uc value = stbi__get8(s);
+            if (count <= dst_length)
+                memset(dst, value, count);
+            dst += count;
+        }
+        dst_length -= count;
+    }
+}
+
+static void *stbi__sgi_load(stbi__context *s, int *x, int *y, int *comp, int req_comp, stbi__result_info *ri) 
+{
+    int magic, compression, bytes_per_channel, dimension;
+    int xsize, ysize, channels_in_file;
+    int pixmin, pixmax, reserved;
+    char image_name[80];
+    int colormap;
+    stbi_uc *result = NULL;
+    int i, j, c;
+
+    STBI_NOTUSED(ri);
+
+    // Read SGI header
+    magic = stbi__get16be(s);
+    if (magic != 0x01DA) {
+        return stbi__errpuc("not SGI image", "SGI image corrupt");
+    }
+
+    compression = stbi__get8(s);
+    bytes_per_channel = stbi__get8(s);
+    dimension = stbi__get16be(s);
+    xsize = stbi__get16be(s);
+    ysize = stbi__get16be(s);
+    channels_in_file = stbi__get16be(s);
+
+    pixmin = stbi__get32be(s);
+    pixmax = stbi__get32be(s);
+    reserved = stbi__get32be(s);
+
+    // Read image name (80 bytes)
+    for (i = 0; i < 80; i++) {
+        image_name[i] = stbi__get8(s);
+    }
+
+    colormap = stbi__get32be(s);
+
+    // Skip reserved bytes (404 bytes)
+    stbi__skip(s, 404);
+
+    // Validate header
+    if (bytes_per_channel != 1 || channels_in_file < 1 || channels_in_file > 4 ) {
+        return stbi__errpuc("unsupported SGI format", "SGI image has unsupported format");
+    }
+
+    if (dimension != 2 && dimension != 3) {
+        return stbi__errpuc("unsupported SGI dimension", "SGI image has unsupported dimension");
+    }
+
+    *x = xsize;
+    *y = ysize;
+    *comp = channels_in_file;
+
+    result = (stbi_uc *)stbi__malloc_mad3(xsize, ysize, channels_in_file, 0);
+    if (!result) return stbi__errpuc("outofmem", "Out of memory");
+
+    if (compression == 0) 
+    {
+        // Uncompressed planar data
+        stbi_uc **channel_data = (stbi_uc **)stbi__malloc(*comp * sizeof(stbi_uc *));
+        if (!channel_data) 
+        {
+            STBI_FREE(result);
+            return stbi__errpuc("outofmem", "Out of memory");
+        }
+
+        // Allocate temporary storage for each channel
+        for (c = 0; c < *comp; c++) 
+        {
+            channel_data[c] = (stbi_uc *)stbi__malloc(xsize * ysize);
+            if (!channel_data[c]) {
+                for (i = 0; i < c; i++)
+                    STBI_FREE(channel_data[i]);
+                STBI_FREE(channel_data);
+                STBI_FREE(result);
+                return stbi__errpuc("outofmem", "Out of memory");
+            }
+        }
+
+        // Read planar data
+        for (c = 0; c < *comp; c++) 
+        {
+            for (i = 0; i < ysize * xsize; i++) {
+                channel_data[c][i] = stbi__get8(s);
+            }
+        }
+
+        // Convert from separate channels to interleaved and flip Y since SGI
+        // format first pixel is lower left
+        if (channels_in_file == 1) {
+            for (j = 0; j < ysize; j++) {
+                stbi_uc *dst = result + (ysize - 1 - j) * xsize;
+                stbi_uc *src0 = channel_data[0] + j * xsize;
+                for (i = 0; i < xsize; i++) {
+                    dst[i] = src0[i];
+                }
+            }
+        } else if (channels_in_file == 2) {
+            for (j = 0; j < ysize; j++) {
+                stbi_uc *dst = result + (ysize - 1 - j) * xsize * 2;
+                stbi_uc *src0 = channel_data[0] + j * xsize;
+                stbi_uc *src1 = channel_data[1] + j * xsize;
+                for (i = 0; i < xsize; i++) {
+                    dst[i * 2 + 0] = src0[i];
+                    dst[i * 2 + 1] = src1[i];
+                }
+            } 
+        } else if (channels_in_file == 3) {
+            for (j = 0; j < ysize; j++) {
+                stbi_uc *dst = result + (ysize - 1 - j) * xsize * 3;
+                stbi_uc *src0 = channel_data[0] + j * xsize;
+                stbi_uc *src1 = channel_data[1] + j * xsize;
+                stbi_uc *src2 = channel_data[2] + j * xsize;
+                for (i = 0; i < xsize; i++) {
+                    dst[i * 3 + 0] = src0[i];
+                    dst[i * 3 + 1] = src1[i];
+                    dst[i * 3 + 2] = src2[i];
+                }
+            }
+        } else { // channels == 4
+            for (j = 0; j < ysize; j++) {
+                stbi_uc *dst = result + (ysize - 1 - j) * xsize * 4;
+                stbi_uc *src0 = channel_data[0] + j * xsize;
+                stbi_uc *src1 = channel_data[1] + j * xsize;
+                stbi_uc *src2 = channel_data[2] + j * xsize;
+                stbi_uc *src3 = channel_data[3] + j * xsize;
+                for (i = 0; i < xsize; i++) {
+                    dst[i * 4 + 0] = src0[i];
+                    dst[i * 4 + 1] = src1[i];
+                    dst[i * 4 + 2] = src2[i];
+                    dst[i * 4 + 3] = src3[i];
+                }
+            }
+        }
+
+        // Cleanup
+        for (c = 0; c < channels_in_file; c++) {
+            STBI_FREE(channel_data[c]);
+        }
+        STBI_FREE(channel_data);
+
+    } else if (compression == 1) 
+    {
+        // RLE compressed
+        int table_size = ysize * (*comp);
+        stbi__uint32 *offset_table, *length_table;
+        stbi_uc *decompressed_data;
+
+        offset_table = (stbi__uint32 *)stbi__malloc(table_size * sizeof(stbi__uint32));
+        length_table = (stbi__uint32 *)stbi__malloc(table_size * sizeof(stbi__uint32));
+        decompressed_data = (stbi_uc *)stbi__malloc((*comp) * xsize * ysize);
+
+        if (!offset_table || !length_table || !decompressed_data) {
+            STBI_FREE(offset_table);
+            STBI_FREE(length_table);
+            STBI_FREE(decompressed_data);
+            STBI_FREE(result);
+            return stbi__errpuc("outofmem", "Out of memory");
+        }
+
+        // Read offset and length tables
+        for (i = 0; i < table_size; i++) 
+        {
+            offset_table[i] = stbi__get32be(s);
+        }
+        for (i = 0; i < table_size; i++) 
+        {
+            length_table[i] = stbi__get32be(s);
+        }
+
+        // Decompress each channel
+        for (c = 0; c < *comp; c++) 
+        {
+            for (j = 0; j < ysize; j++) 
+            {
+                int index = c * ysize + j;
+                int offset = offset_table[index];
+                //int length = length_table[index];
+
+                stbi_uc *dst = decompressed_data + c * xsize * ysize + j * xsize;
+
+                stbi__sgi_rle_decode(dst, xsize, s);
+            }
+        }
+
+        // Convert from planar to interleaved, flipping Y
+        if (channels_in_file == 1) {
+            for (j = 0; j < ysize; j++) {
+                stbi_uc *dst = result + (ysize - 1 - j) * xsize;
+                for (i = 0; i < xsize; i++) {
+                    dst[i] = decompressed_data[0 * xsize * ysize + j * xsize + i];
+                }
+            }
+        } else if (channels_in_file == 2) {
+            for (j = 0; j < ysize; j++) {
+                stbi_uc *dst = result + (ysize - 1 - j) * xsize * 2;
+                for (i = 0; i < xsize; i++) {
+                    dst[i * 2 + 0] = decompressed_data[0 * xsize * ysize + j * xsize + i];
+                    dst[i * 2 + 1] = decompressed_data[1 * xsize * ysize + j * xsize + i];
+                }
+            }
+        } else if (channels_in_file == 3) {
+            for (j = 0; j < ysize; j++) {
+                stbi_uc *dst = result + (ysize - 1 - j) * xsize * 3;
+                for (i = 0; i < xsize; i++) {
+                    dst[i * 3 + 0] = decompressed_data[0 * xsize * ysize + j * xsize + i];
+                    dst[i * 3 + 1] = decompressed_data[1 * xsize * ysize + j * xsize + i];
+                    dst[i * 3 + 2] = decompressed_data[2 * xsize * ysize + j * xsize + i];
+                }
+            }
+        } else { // channels_in_file == 4
+            for (j = 0; j < ysize; j++) {
+                stbi_uc *dst = result + (ysize - 1 - j) * xsize * 4;
+                for (i = 0; i < xsize; i++) {
+                    dst[i * 4 + 0] = decompressed_data[0 * xsize * ysize + j * xsize + i];
+                    dst[i * 4 + 1] = decompressed_data[1 * xsize * ysize + j * xsize + i];
+                    dst[i * 4 + 2] = decompressed_data[2 * xsize * ysize + j * xsize + i];
+                    dst[i * 4 + 3] = decompressed_data[3 * xsize * ysize + j * xsize + i];
+                }
+            }
+        }
+
+        STBI_FREE(offset_table);
+        STBI_FREE(length_table);
+        STBI_FREE(decompressed_data);
+    } 
+    else 
+    {
+        STBI_FREE(result);
+        return stbi__errpuc("unsupported compression", "SGI image uses unsupported compression");
+    }
+
+    // convert to target component count
+    if (req_comp && ((req_comp > 0) && (req_comp <= 4)))
+        result = stbi__convert_format(result, channels_in_file, req_comp, xsize, ysize);
+
+    return result;
+}
+
+static int stbi__sgi_info(stbi__context *s, int *x, int *y, int *comp) {
+    int magic, compression, bytes_per_channel, dimension;
+    int xsize, ysize, channels;
+
+    magic = stbi__get16be(s);
+    if (magic != 0x01DA) {
+        stbi__rewind(s);
+        return 0;
+    }
+
+    compression = stbi__get8(s);
+    bytes_per_channel = stbi__get8(s);
+    dimension = stbi__get16be(s);
+    xsize = stbi__get16be(s);
+    ysize = stbi__get16be(s);
+    channels = stbi__get16be(s);
+
+    stbi__rewind(s);
+
+    if (bytes_per_channel != 1 || channels < 1 || channels > 4) {
+        return 0;
+    }
+
+    if (dimension != 2 && dimension != 3) {
+        return 0;
+    }
+
+    *x = xsize;
+    *y = ysize;
+    *comp = channels;
+    return 1;
+}
+
+#endif
+// end SGI textures
+
 // Targa Truevision - TGA
 // by Jonathan Dummer
 #ifndef STBI_NO_TGA
@@ -7890,6 +8218,10 @@ static int stbi__info_main(stbi__context *s, int *x, int *y, int *comp)
 
    #ifndef STBI_NO_BMP
    if (stbi__bmp_info(s, x, y, comp))  return 1;
+   #endif
+
+   #ifndef STBI_NO_SGI
+   if (stbi__sgi_info(s, x, y, comp)) return 1;
    #endif
 
    #ifndef STBI_NO_PSD
