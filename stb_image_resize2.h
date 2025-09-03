@@ -1626,7 +1626,7 @@ static stbir__inline stbir_uint8 stbir__linear_to_srgb_uchar(float in)
 
     static __m256i stbir_00112233 = { STBIR__CONST_4d_32i( 0, 0, 1, 1 ), STBIR__CONST_4d_32i( 2, 2, 3, 3 ) };
     #define stbir__simdf8_0123to00112233( out, in ) (out) = _mm256_permutevar_ps ( in, stbir_00112233 )
-    #define stbir__simdf8_add4( out, a8, b ) (out) = _mm256_add_ps( a8,  _mm256_castps128_ps256( b ) )
+    #define stbir__simdf8_add4( out, a8, b ) (out) = _mm256_add_ps( a8, _mm256_setr_m128( b, _mm_setzero_ps() ) )
 
     static __m256i stbir_load6 = { STBIR__CONST_4_32i( 0x80000000 ), STBIR__CONST_4d_32i(  0x80000000,  0x80000000, 0, 0 ) };
     #define stbir__simdf8_load6z( out, ptr ) (out) = _mm256_maskload_ps( ptr, stbir_load6 )
