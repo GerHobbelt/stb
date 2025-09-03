@@ -1248,7 +1248,7 @@ STBIWDEF unsigned char *stbi_write_png_to_mem(const unsigned char *pixels, int s
 static unsigned short stbiw__paeth_16(int a, int b, int c)
 {
     int p = a + b - c, pa = abs(p - a), pb = abs(p - b), pc = abs(p - c);
-    if (pa <= pb && pa <= pc) return (a& 0xffff);
+    if (pa <= pb && pa <= pc) return (a & 0xffff);
     if (pb <= pc) return (b & 0xffff);
     return (c & 0xffff);
 }
@@ -1265,12 +1265,12 @@ static void stbiw__encode_png_line_16(unsigned short* pixels, int stride_bytes, 
     int* mymap = (y != 0) ? mapping : firstmap;
     int i;
     int type = mymap[filter_type];
-    unsigned short* z = (unsigned short*)(pixels + width*n * (stbi__flip_vertically_on_write ? height - 1 - y : y));
-    int signed_stride = stbi__flip_vertically_on_write ? -width * n : width * n;
+    unsigned short* z = (unsigned short*)(pixels + stride_bytes * (stbi__flip_vertically_on_write ? height - 1 - y : y));
+    int signed_stride = stbi__flip_vertically_on_write ? -stride_bytes : stride_bytes;
     bool multi_channel = n > 1;
     if (type == 0) {
-        if (multi_channel){
-            for (i = 0; i < width * n;++i)
+        if (multi_channel) {
+            for (i = 0; i < stride_bytes; ++i)
                 line_buffer[i] = stbiw_swap_bit(z[i]);
         }
         else
@@ -1278,7 +1278,7 @@ static void stbiw__encode_png_line_16(unsigned short* pixels, int stride_bytes, 
         return;
     }
 
-    if (multi_channel){
+    if (multi_channel) {
         // first loop isn't optimized since it's just one pixel
         for (i = 0; i < n; ++i) {
             switch (type) {
@@ -1333,14 +1333,14 @@ STBIWDEF unsigned char* stbi_write_png_to_mem_16(const unsigned char* pixels, in
     int j, zlen;
 
     if (stride_bytes == 0)
-        stride_bytes = x * n *2;
+        stride_bytes = x * n * 2;
 
     if (force_filter >= 5) {
         force_filter = -1;
     }
 
-    filt = (unsigned char*)STBIW_MALLOC((x * n*2 + 1) * y); if (!filt) return 0;
-    line_buffer = (signed short*)STBIW_MALLOC(x * n*2); if (!line_buffer) { STBIW_FREE(filt); return 0; }
+    filt = (unsigned char*)STBIW_MALLOC((x * n * 2 + 1) * y); if (!filt) return 0;
+    line_buffer = (signed short*)STBIW_MALLOC(x * n * 2); if (!line_buffer) { STBIW_FREE(filt); return 0; }
     for (j = 0; j < y; ++j) {
         int filter_type;
         if (force_filter > -1) {
@@ -1368,11 +1368,11 @@ STBIWDEF unsigned char* stbi_write_png_to_mem_16(const unsigned char* pixels, in
             }
         }
         // when we get here, filter_type contains the filter type, and line_buffer contains the data
-        filt[j * (x * n*2 + 1)] = (unsigned char)filter_type;
-        STBIW_MEMMOVE(filt + j * (x * n*2 + 1) + 1, line_buffer, x * n*2);
+        filt[j * (x * n * 2 + 1)] = (unsigned char)filter_type;
+        STBIW_MEMMOVE(filt + j * (x * n * 2 + 1) + 1, line_buffer, x * n * 2);
     }
     STBIW_FREE(line_buffer);
-    zlib = stbi_zlib_compress(filt, y * (x * n*2 + 1), &zlen, stbi_write_png_compression_level);
+    zlib = stbi_zlib_compress(filt, y * (x * n * 2 + 1), &zlen, stbi_write_png_compression_level);
     STBIW_FREE(filt);
     if (!zlib) return 0;
 
