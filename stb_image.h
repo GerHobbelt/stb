@@ -110,7 +110,7 @@ RECENT REVISION HISTORY:
     Jonathan Blow           Ken Hamada         Tero Hanninen        github:svdijk
     Eugene Golushkov        Laurent Gomila     Cort Stratton        github:snagar
     Aruelien Pocheville     Sergio Gonzalez    Thibault Reuille     github:Zelex
-    Cass Everitt            Ryamond Barbiero                        github:grim210
+    Cass Everitt            Ryamond Barbiero   Philip Abbet         github:grim210
     Paul Du Bois            Engin Manap        Aldo Culquicondor    github:sammyhw
     Philipp Wiesemann       Dale Weiler        Oriol Ferrer Mesia   github:phprus
     Josh Tobin              Nia Bickford       Matthew Gregan       github:poppolopoppo
