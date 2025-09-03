@@ -119,6 +119,18 @@ if(NOT STB_SANITIZERS)
 endif()
 
 #-------------------------------------------------------------------------------
+# stb_image regression test cases
+add_executable(stb_image_test_issues
+  image/image_test_issues.c
+  image/1454_gif.h
+)
+target_compile_options(stb_image_test_issues PRIVATE ${STB_SANITIZERS})
+if(UNIX)
+  target_link_libraries(stb_image_test_issues PRIVATE m)
+  target_link_options(stb_image_test_issues PRIVATE ${STB_SANITIZERS})
+endif()
+
+#-------------------------------------------------------------------------------
 # Vorbis test cases
 add_executable(stb_vorbis_test_issues
   vorbis/vorbis_test_issues.c
