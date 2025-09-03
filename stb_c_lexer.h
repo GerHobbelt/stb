@@ -582,6 +582,7 @@ int stb_c_lexer_get_token(stb_lexer *lexer)
                || p[n] == '_' || (unsigned char) p[n] >= 128
                 STB_C_LEX_DOLLAR_IDENTIFIER( || p[n] == '$' )
             );
+            lexer->string_len = n;
             lexer->string[n] = 0;
             lexer->string_len = n;
             return stb__clex_token(lexer, CLEX_id, p, p+n-1);
