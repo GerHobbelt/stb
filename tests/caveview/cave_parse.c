@@ -545,7 +545,7 @@ fast_chunk *get_decoded_fastchunk_uncached(int chunk_x, int chunk_z)
    assert(cc->data[4] == 2);
 
    inlen = nbt_parse_uint32(cc->data);
-   decoded = stbi_zlib_decode_malloc_guesssize(cc->data+5, inlen, inlen*3, &len);
+   decoded = (unsigned char *)stbi_zlib_decode_malloc_guesssize(cc->data+5, inlen, inlen*3, &len);
    assert(decoded != NULL);
    assert(len != 0);
 

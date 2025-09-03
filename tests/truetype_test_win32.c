@@ -155,7 +155,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
    wndclass.hInstance     = hInstance;
    wndclass.hIcon         = LoadIcon(hInstance, _T("appicon"));
    wndclass.hCursor       = LoadCursor(NULL,IDC_ARROW);
-   wndclass.hbrBackground = GetStockObject(NULL_BRUSH);
+   wndclass.hbrBackground = (HBRUSH)GetStockObject(NULL_BRUSH);
    wndclass.lpszMenuName  = _T("truetype-test");
    wndclass.lpszClassName = _T("truetype-test");
    wndclass.hIconSm       = NULL;

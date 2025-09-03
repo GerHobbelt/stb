@@ -16,14 +16,14 @@
 #include "old_image_resize.h"  
 
 
-static int types[4] =    { STBIR_TYPE_UINT8, STBIR_TYPE_UINT8, STBIR_TYPE_UINT16, STBIR_TYPE_FLOAT };
-static int edges[4] =    { STBIR_EDGE_CLAMP, STBIR_EDGE_REFLECT, STBIR_EDGE_ZERO, STBIR_EDGE_WRAP };
-static int flts[5] =     { STBIR_FILTER_BOX, STBIR_FILTER_TRIANGLE, STBIR_FILTER_CUBICBSPLINE, STBIR_FILTER_CATMULLROM, STBIR_FILTER_MITCHELL };
-static int channels[20] = { 1, 2, 3, 4,      4,4,  2,2,  4,4, 2,2,  4,4, 2,2,  4,4, 2,2 }; 
-static int alphapos[20] = { -1, -1, -1, -1,  3,0,  1,0,   3,0,  1,0,   3,0,  1,0,   3,0,  1,0 }; 
+static const int types[4] =    { STBIR_TYPE_UINT8, STBIR_TYPE_UINT8, STBIR_TYPE_UINT16, STBIR_TYPE_FLOAT };
+static const int edges[4] =    { STBIR_EDGE_CLAMP, STBIR_EDGE_REFLECT, STBIR_EDGE_ZERO, STBIR_EDGE_WRAP };
+static const int flts[5] =     { STBIR_FILTER_BOX, STBIR_FILTER_TRIANGLE, STBIR_FILTER_CUBICBSPLINE, STBIR_FILTER_CATMULLROM, STBIR_FILTER_MITCHELL };
+static const int channels[20] = { 1, 2, 3, 4,      4,4,  2,2,  4,4, 2,2,  4,4, 2,2,  4,4, 2,2 };
+static const int alphapos[20] = { -1, -1, -1, -1,  3,0,  1,0,   3,0,  1,0,   3,0,  1,0,   3,0,  1,0 };
 
 
-void oresize( void * o, int ox, int oy, int op, void * i, int ix, int iy, int ip, int buf, int type, int edg, int flt )
+void oresize( void * o, int ox, int oy, int op, const void * i, int ix, int iy, int ip, int buf, int type, int edg, int flt )
 {
   int t = types[type];
   int ic = channels[buf];

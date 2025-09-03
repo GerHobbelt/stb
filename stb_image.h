@@ -8167,12 +8167,12 @@ static void *stbi__pnm_load(stbi__context *s, int *x, int *y, int *comp, int req
       filebuf = (stbi_uc *) stbi__malloc_mad2(line, s->img_y, 0);
       if (!filebuf) {
          STBI_FREE(out);
-         return stbi__errpuc("outofmem", "Out of memory");
+         return stbi__errpuc("outofmem", "Out of memory", STBI_ERROR_OUT_OF_MEMORY);
       }
       if (!stbi__getn(s, filebuf, line*s->img_y)) {
          STBI_FREE(out);
          STBI_FREE(filebuf);
-         return stbi__errpuc("bad PNM", "PNM file truncated");
+         return stbi__errpuc("bad PNM", "PNM file truncated", STBI_ERROR_OUT_OF_MEMORY);
       }
       
       p_in = filebuf;

@@ -1879,39 +1879,39 @@ enum stb_splitpath_flag
 STB_EXTERN char * stb_skipwhite(char *s);
 STB_EXTERN char * stb_trimwhite(char *s);
 STB_EXTERN char * stb_skipnewline(char *s);
-STB_EXTERN char * stb_strncpy(char *s, char *t, int n);
+STB_EXTERN char * stb_strncpy(char *s, const char *t, int n);
 STB_EXTERN char * stb_substr(char *t, int n);
-STB_EXTERN char * stb_duplower(char *s);
+STB_EXTERN char * stb_duplower(const char *s);
 STB_EXTERN void   stb_tolower (char *s);
 STB_EXTERN char * stb_strchr2 (char *s, char p1, char p2);
 STB_EXTERN char * stb_strrchr2(char *s, char p1, char p2);
 STB_EXTERN char * stb_strtok(char *output, char *src, const char *delimit);
 STB_EXTERN char * stb_strtok_keep(char *output, char *src, const char *delimit);
 STB_EXTERN char * stb_strtok_invert(char *output, char *src, const char *allowed);
-STB_EXTERN char * stb_dupreplace(char *s, const char *find, const char *replace);
+STB_EXTERN char * stb_dupreplace(const char *s, const char *find, const char *replace);
 STB_EXTERN void   stb_replaceinplace(char *s, const char *find, const char *replace);
 STB_EXTERN char * stb_splitpath(char *output, char *src, int flag);
-STB_EXTERN char * stb_splitpathdup(char *src, int flag);
-STB_EXTERN char * stb_replacedir(char *output, char *src, const char *dir);
-STB_EXTERN char * stb_replaceext(char *output, char *src, const char *ext);
+STB_EXTERN char * stb_splitpathdup(const char *src, int flag);
+STB_EXTERN char * stb_replacedir(char *output, const char *src, const char *dir);
+STB_EXTERN char * stb_replaceext(char *output, const char *src, const char *ext);
 STB_EXTERN void   stb_fixpath(char *path);
-STB_EXTERN char * stb_shorten_path_readable(char *path, int max_len);
-STB_EXTERN int    stb_suffix (char *s, char *t);
-STB_EXTERN int    stb_suffixi(char *s, char *t);
-STB_EXTERN int    stb_prefix (char *s, char *t);
+STB_EXTERN const char * stb_shorten_path_readable(const char *path, int max_len);
+STB_EXTERN int    stb_suffix (const char *s, const char *t);
+STB_EXTERN int    stb_suffixi(const char *s, const char *t);
+STB_EXTERN int    stb_prefix (const char *s, const char *t);
 STB_EXTERN char * stb_strichr(char *s, char t);
 STB_EXTERN char * stb_stristr(char *s, char *t);
-STB_EXTERN int    stb_prefix_count(char *s, char *t);
+STB_EXTERN int    stb_prefix_count(const char *s, const char *t);
 STB_EXTERN const char * stb_plural(int n);  // "s" or ""
 STB_EXTERN size_t stb_strscpy(char *d, const char *s, size_t n);
 
-STB_EXTERN char **stb_tokens(char *src, char *delimit, int *count);
-STB_EXTERN char **stb_tokens_nested(char *src, char *delimit, int *count, char *nest_in, char *nest_out);
-STB_EXTERN char **stb_tokens_nested_empty(char *src, char *delimit, int *count, char *nest_in, char *nest_out);
-STB_EXTERN char **stb_tokens_allowempty(char *src, char *delimit, int *count);
-STB_EXTERN char **stb_tokens_stripwhite(char *src, char *delimit, int *count);
-STB_EXTERN char **stb_tokens_withdelim(char *src, char *delimit, int *count);
-STB_EXTERN char **stb_tokens_quoted(char *src, char *delimit, int *count);
+STB_EXTERN char **stb_tokens(char *src, const char *delimit, int *count);
+STB_EXTERN char **stb_tokens_nested(char *src, const char *delimit, int *count, char *nest_in, char *nest_out);
+STB_EXTERN char **stb_tokens_nested_empty(char *src, const char *delimit, int *count, char *nest_in, char *nest_out);
+STB_EXTERN char **stb_tokens_allowempty(char *src, const char *delimit, int *count);
+STB_EXTERN char **stb_tokens_stripwhite(char *src, const char *delimit, int *count);
+STB_EXTERN char **stb_tokens_withdelim(char *src, const char *delimit, int *count);
+STB_EXTERN char **stb_tokens_quoted(char *src, const char *delimit, int *count);
 // with 'quoted', allow delimiters to appear inside quotation marks, and don't
 // strip whitespace inside them (and we delete the quotation marks unless they
 // appear back to back, in which case they're considered escaped)
@@ -1934,7 +1934,7 @@ const char *stb_plural(int n)
    return n == 1 ? "" : "s";
 }
 
-int stb_prefix(char *s, char *t)
+int stb_prefix(const char *s, const char *t)
 {
    while (*t)
       if (*s++ != *t++)
@@ -1942,7 +1942,7 @@ int stb_prefix(char *s, char *t)
    return STB_TRUE;
 }
 
-int stb_prefix_count(char *s, char *t)
+int stb_prefix_count(const char *s, const char *t)
 {
    int c=0;
    while (*t) {
@@ -1953,7 +1953,7 @@ int stb_prefix_count(char *s, char *t)
    return c;
 }
 
-int stb_suffix(char *s, char *t)
+int stb_suffix(const char *s, const char *t)
 {
    size_t n = strlen(s);
    size_t m = strlen(t);
@@ -1963,7 +1963,7 @@ int stb_suffix(char *s, char *t)
       return 0;
 }
 
-int stb_suffixi(char *s, char *t)
+int stb_suffixi(const char *s, const char *t)
 {
    size_t n = strlen(s);
    size_t m = strlen(t);
@@ -2005,7 +2005,7 @@ char *stb_trimwhite(char *s)
    return s;
 }
 
-char *stb_strncpy(char *s, char *t, int n)
+char *stb_strncpy(char *s, const char *t, int n)
 {
    stb_p_strncpy_s(s,n+1,t,n);
    s[n] = 0;
@@ -2023,7 +2023,7 @@ char *stb_substr(char *t, int n)
    return a;
 }
 
-char *stb_duplower(char *s)
+char *stb_duplower(const char *s)
 {
    char *p = stb_p_strdup(s), *q = p;
    while (*q) {
@@ -2049,13 +2049,24 @@ char *stb_strchr2(char *s, char x, char y)
    return NULL;
 }
 
-char *stb_strrchr2(char *s, char x, char y)
+#if defined(__cplusplus)
+const char *stb_strrchr2(const char *s, char x, char y)
 {
-   char *r = NULL;
+   const char *r = NULL;
    for(; *s; ++s)
       if (*s == x || *s == y)
          r = s;
    return r;
+}
+#endif
+
+char *stb_strrchr2(char *s, char x, char y)
+{
+	char *r = NULL;
+	for (; *s; ++s)
+		if (*s == x || *s == y)
+			r = s;
+	return r;
 }
 
 char *stb_strichr(char *s, char t)
@@ -2111,7 +2122,7 @@ char *stb_strtok_invert(char *output, char *src, char *delimit)
    return stb_strtok_raw(output, src, delimit, 1,1);
 }
 
-static char **stb_tokens_raw(char *src_, char *delimit, int *count,
+static char **stb_tokens_raw(const char *src_, const char *delimit, int *count,
                              int stripwhite, int allow_empty, char *start, char *end)
 {
    int nested = 0;
@@ -2121,18 +2132,18 @@ static char **stb_tokens_raw(char *src_, char *delimit, int *count,
    char *out;
    char **result;
    int num=0;
-   unsigned char *s;
+   const unsigned char *s;
 
-   s = (unsigned char *) delimit; while (*s) stb_tokentable[*s++] = 1;
+   s = (const unsigned char *) delimit; while (*s) stb_tokentable[*s++] = 1;
    if (start) {
-      s = (unsigned char *) start;         while (*s) stable[*s++] = 1;
-      s = (unsigned char *) end;   if (s)  while (*s) stable[*s++] = 1;
-      s = (unsigned char *) end;   if (s)  while (*s) etable[*s++] = 1;
+      s = (const unsigned char *) start;         while (*s) stable[*s++] = 1;
+      s = (const unsigned char *) end;   if (s)  while (*s) stable[*s++] = 1;
+      s = (const unsigned char *) end;   if (s)  while (*s) etable[*s++] = 1;
    }
    stable[0] = 1;
 
    // two passes through: the first time, counting how many
-   s = (unsigned char *) src;
+   s = (const unsigned char *) src;
    while (*s) {
       // state: just found delimiter
       // skip further delimiters
@@ -2187,7 +2198,7 @@ static char **stb_tokens_raw(char *src_, char *delimit, int *count,
    if (result == NULL) return result;
    out = (char *) (result + (num+1));
    // second pass: copy out the data
-   s = (unsigned char *) src;
+   s = (const unsigned char *) src;
    num = 0;
    nested = 0;
    while (*s) {
@@ -2255,54 +2266,55 @@ static char **stb_tokens_raw(char *src_, char *delimit, int *count,
 
       if (*s) ++s; // skip delimiter
    }
-   s = (unsigned char *) delimit; while (*s) stb_tokentable[*s++] = 0;
+   s = (const unsigned char *) delimit; while (*s) stb_tokentable[*s++] = 0;
    if (start) {
-      s = (unsigned char *) start;         while (*s) stable[*s++] = 1;
-      s = (unsigned char *) end;   if (s)  while (*s) stable[*s++] = 1;
-      s = (unsigned char *) end;   if (s)  while (*s) etable[*s++] = 1;
+      s = (const unsigned char *) start;         while (*s) stable[*s++] = 1;
+      s = (const unsigned char *) end;   if (s)  while (*s) stable[*s++] = 1;
+      s = (const unsigned char *) end;   if (s)  while (*s) etable[*s++] = 1;
    }
    if (count != NULL) *count = num;
    result[num] = 0;
    return result;
 }
 
-char **stb_tokens(char *src, char *delimit, int *count)
+char **stb_tokens(const char *src, const char *delimit, int *count)
 {
    return stb_tokens_raw(src,delimit,count,0,0,0,0);
 }
 
-char **stb_tokens_nested(char *src, char *delimit, int *count, char *nest_in, char *nest_out)
+char **stb_tokens_nested(const char *src, const char *delimit, int *count, char *nest_in, char *nest_out)
 {
    return stb_tokens_raw(src,delimit,count,0,0,nest_in,nest_out);
 }
 
-char **stb_tokens_nested_empty(char *src, char *delimit, int *count, char *nest_in, char *nest_out)
+char **stb_tokens_nested_empty(const char *src, const char *delimit, int *count, char *nest_in, char *nest_out)
 {
    return stb_tokens_raw(src,delimit,count,0,1,nest_in,nest_out);
 }
 
-char **stb_tokens_allowempty(char *src, char *delimit, int *count)
+char **stb_tokens_allowempty(const char *src, const char *delimit, int *count)
 {
    return stb_tokens_raw(src,delimit,count,0,1,0,0);
 }
 
-char **stb_tokens_stripwhite(char *src, char *delimit, int *count)
+char **stb_tokens_stripwhite(const char *src, const char *delimit, int *count)
 {
    return stb_tokens_raw(src,delimit,count,1,1,0,0);
 }
 
-char **stb_tokens_quoted(char *src, char *delimit, int *count)
+char **stb_tokens_quoted(const char *src, const char *delimit, int *count)
 {
    return stb_tokens_raw(src,delimit,count,2,1,0,0);
 }
 
-char *stb_dupreplace(char *src, const char *find, const char *replace)
+char *stb_dupreplace(const char *src, const char *find, const char *replace)
 {
    size_t len_find = strlen(find);
    size_t len_replace = strlen(replace);
    int count = 0;
 
-   char *s,*p,*q;
+   const char *s;
+   char *p, *q;
 
    s = strstr(src, find);
    if (s == NULL) return stb_p_strdup(src);
@@ -2316,7 +2328,7 @@ char *stb_dupreplace(char *src, const char *find, const char *replace)
    q = p;
    s = src;
    for (;;) {
-      char *t = strstr(s, find);
+	  const char *t = strstr(s, find);
       if (t == NULL) {
          stb_p_strcpy_s(q,strlen(src)+count*(len_replace-len_find)+1,s);
          assert(strlen(p) == strlen(src) + count*(len_replace-len_find));
@@ -2366,7 +2378,7 @@ void stb_fixpath(char *path)
          *path = '/';
 }
 
-void stb__add_section(char *buffer, char *data, ptrdiff_t curlen, ptrdiff_t newlen)
+void stb__add_section(char *buffer, const char *data, ptrdiff_t curlen, ptrdiff_t newlen)
 {
    if (newlen < curlen) {
       ptrdiff_t z1 = newlen >> 1, z2 = newlen-z1;
@@ -2378,11 +2390,11 @@ void stb__add_section(char *buffer, char *data, ptrdiff_t curlen, ptrdiff_t newl
       memcpy(buffer, data, curlen);
 }
 
-char * stb_shorten_path_readable(char *path, int len)
+const char * stb_shorten_path_readable(const char *path, int len)
 {
    static char buffer[1024];
    ptrdiff_t n = strlen(path),n1,n2,r1,r2;
-   char *s;
+   const char *s;
    if (n <= len) return path;
    if (len > 1024) return path;
    s = stb_strrchr2(path, '/', '\\');
@@ -2416,11 +2428,11 @@ char * stb_shorten_path_readable(char *path, int len)
    return buffer;
 }
 
-static char *stb__splitpath_raw(char *buffer, char *path, int flag)
+static char *stb__splitpath_raw(char *buffer, const char *path, int flag)
 {
    ptrdiff_t len=0,x,y, n = (int) strlen(path), f1,f2;
-   char *s = stb_strrchr2(path, '/', '\\');
-   char *t = strrchr(path, '.');
+   const char *s = stb_strrchr2(path, '/', '\\');
+   const char *t = strrchr(path, '.');
    if (s && t && t < s) t = NULL;
 
    if (!s) {
@@ -2466,17 +2478,17 @@ static char *stb__splitpath_raw(char *buffer, char *path, int flag)
    return buffer;
 }
 
-char *stb_splitpath(char *output, char *src, int flag)
+char *stb_splitpath(char *output, const char *src, int flag)
 {
    return stb__splitpath_raw(output, src, flag);
 }
 
-char *stb_splitpathdup(char *src, int flag)
+char *stb_splitpathdup(const char *src, int flag)
 {
    return stb__splitpath_raw(NULL, src, flag);
 }
 
-char *stb_replacedir(char *output, char *src, const char *dir)
+char *stb_replacedir(char *output, const char *src, const char *dir)
 {
    char buffer[4096];
    stb_splitpath(buffer, src, STB_FILE | STB_EXT);
@@ -2487,7 +2499,7 @@ char *stb_replacedir(char *output, char *src, const char *dir)
    return output;
 }
 
-char *stb_replaceext(char *output, char *src, const char *ext)
+char *stb_replaceext(char *output, const char *src, const char *ext)
 {
    char buffer[4096];
    stb_splitpath(buffer, src, STB_PATH | STB_FILE);
@@ -5927,7 +5939,7 @@ void    stb_fput_varlen64(FILE *f, stb_uint64 v)
 void    stb_fput_ranged(FILE *f, int v, int b, stb_uint n)
 {
    v -= b;
-   if (n <= (1 << 31))
+   if (n <= (1u << 31))
       assert((stb_uint) v < n);
    if (n > (1 << 24)) fputc(v >> 24, f);
    if (n > (1 << 16)) fputc(v >> 16, f);
@@ -6097,13 +6109,13 @@ char **stb_getopt_param(int *argc, char **argv, char *param)
 //                 Portable directory reading
 //
 
-STB_EXTERN char **stb_readdir_files  (char *dir);
-STB_EXTERN char **stb_readdir_files_mask(char *dir, char *wild);
-STB_EXTERN char **stb_readdir_subdirs(char *dir);
-STB_EXTERN char **stb_readdir_subdirs_mask(char *dir, char *wild);
+STB_EXTERN char **stb_readdir_files  (const char *dir);
+STB_EXTERN char **stb_readdir_files_mask(const char *dir, const char *wild);
+STB_EXTERN char **stb_readdir_subdirs(const char *dir);
+STB_EXTERN char **stb_readdir_subdirs_mask(const char *dir, const char *wild);
 STB_EXTERN void   stb_readdir_free   (char **files);
-STB_EXTERN char **stb_readdir_recursive(char *dir, const char *filespec);
-STB_EXTERN void stb_delete_directory_recursive(char *dir);
+STB_EXTERN char **stb_readdir_recursive(const char *dir, const char *filespec);
+STB_EXTERN void stb_delete_directory_recursive(const char *dir);
 
 #ifdef STB_DEFINE
 
@@ -6124,15 +6136,15 @@ void stb_readdir_free(char **files)
    stb_arr_free(f2);
 }
 
-static int isdotdirname(char *name)
+static int isdotdirname(const char *name)
 {
    if (name[0] == '.')
       return (name[1] == '.') ? !name[2] : !name[1];
    return 0;
 }
 
-STB_EXTERN int stb_wildmatchi(char *expr, char *candidate);
-static char **readdir_raw(char *dir, int return_subdirs, char *mask)
+STB_EXTERN int stb_wildmatchi(const char *expr, const char *candidate);
+static char **readdir_raw(const char *dir, int return_subdirs, const char *mask)
 {
    char **results = NULL;
    char buffer[4096], with_slash[4096];
@@ -6228,13 +6240,13 @@ static char **readdir_raw(char *dir, int return_subdirs, char *mask)
    return results;
 }
 
-char **stb_readdir_files  (char *dir) { return readdir_raw(dir, 0, NULL); }
-char **stb_readdir_subdirs(char *dir) { return readdir_raw(dir, 1, NULL); }
-char **stb_readdir_files_mask(char *dir, char *wild) { return readdir_raw(dir, 0, wild); }
-char **stb_readdir_subdirs_mask(char *dir, char *wild) { return readdir_raw(dir, 1, wild); }
+char **stb_readdir_files  (const char *dir) { return readdir_raw(dir, 0, NULL); }
+char **stb_readdir_subdirs(const char *dir) { return readdir_raw(dir, 1, NULL); }
+char **stb_readdir_files_mask(const char *dir, const char *wild) { return readdir_raw(dir, 0, wild); }
+char **stb_readdir_subdirs_mask(const char *dir, const char *wild) { return readdir_raw(dir, 1, wild); }
 
 int stb__rec_max=0x7fffffff;
-static char **stb_readdir_rec(char **sofar, char *dir, char *filespec)
+static char **stb_readdir_rec(char **sofar, const char *dir, const char *filespec)
 {
    char **files;
    char ** dirs;
@@ -6257,12 +6269,12 @@ static char **stb_readdir_rec(char **sofar, char *dir, char *filespec)
    return sofar;
 }
 
-char **stb_readdir_recursive(char *dir, const char *filespec)
+char **stb_readdir_recursive(const char *dir, const char *filespec)
 {
    return stb_readdir_rec(NULL, dir, filespec);
 }
 
-void stb_delete_directory_recursive(char *dir)
+void stb_delete_directory_recursive(const char *dir)
 {
    char **list = stb_readdir_subdirs(dir);
    int i;
@@ -6305,13 +6317,13 @@ struct stb_dirtree2
    char **files;
 };
 
-STB_EXTERN stb_dirtree2 *stb_dirtree2_from_files_relative(char *src, char **filelist, int count);
+STB_EXTERN stb_dirtree2 *stb_dirtree2_from_files_relative(const char *src, char **filelist, int count);
 STB_EXTERN stb_dirtree2 *stb_dirtree2_from_files(char **filelist, int count);
-STB_EXTERN int stb_dir_is_prefix(char *dir, int dirlen, char *file);
+STB_EXTERN int stb_dir_is_prefix(const char *dir, int dirlen, const char *file);
 
 #ifdef STB_DEFINE
 
-int stb_dir_is_prefix(char *dir, int dirlen, char *file)
+int stb_dir_is_prefix(const char *dir, int dirlen, const char *file)
 {
    if (dirlen == 0) return STB_TRUE;
    if (stb_strnicmp(dir, file, dirlen)) return STB_FALSE;
@@ -6319,7 +6331,7 @@ int stb_dir_is_prefix(char *dir, int dirlen, char *file)
    return STB_FALSE;
 }
 
-stb_dirtree2 *stb_dirtree2_from_files_relative(char *src, char **filelist, int count)
+stb_dirtree2 *stb_dirtree2_from_files_relative(const char *src, char **filelist, int count)
 {
    char buffer1[1024];
    int i;
@@ -6386,7 +6398,7 @@ stb_dirtree2 *stb_dirtree2_from_files_relative(char *src, char **filelist, int c
 
 stb_dirtree2 *stb_dirtree2_from_files(char **filelist, int count)
 {
-   return stb_dirtree2_from_files_relative((char*) "", filelist, count);
+   return stb_dirtree2_from_files_relative("", filelist, count);
 }
 #endif
 
@@ -9066,30 +9078,30 @@ int *stb_wordwrapalloc(int count, char *str)
 //         stb_match:    wildcards and regexping
 //
 
-STB_EXTERN int stb_wildmatch (char *expr, char *candidate);
-STB_EXTERN int stb_wildmatchi(char *expr, char *candidate);
-STB_EXTERN int stb_wildfind  (char *expr, char *candidate);
-STB_EXTERN int stb_wildfindi (char *expr, char *candidate);
+STB_EXTERN int stb_wildmatch (const char *expr, const char *candidate);
+STB_EXTERN int stb_wildmatchi(const char *expr, const char *candidate);
+STB_EXTERN int stb_wildfind  (const char *expr, const char *candidate);
+STB_EXTERN int stb_wildfindi (const char *expr, const char *candidate);
 
-STB_EXTERN int stb_regex(char *regex, char *candidate);
+STB_EXTERN int stb_regex(const char *regex, const char *candidate);
 
 typedef struct stb_matcher stb_matcher;
 
-STB_EXTERN stb_matcher *stb_regex_matcher(char *regex);
-STB_EXTERN int stb_matcher_match(stb_matcher *m, char *str);
-STB_EXTERN int stb_matcher_find(stb_matcher *m, char *str);
+STB_EXTERN stb_matcher *stb_regex_matcher(const char *regex);
+STB_EXTERN int stb_matcher_match(stb_matcher *m, const char *str);
+STB_EXTERN int stb_matcher_find(stb_matcher *m, const char *str);
 STB_EXTERN void stb_matcher_free(stb_matcher *f);
 
 STB_EXTERN stb_matcher *stb_lex_matcher(void);
 STB_EXTERN int stb_lex_item(stb_matcher *m, const char *str, int result);
 STB_EXTERN int stb_lex_item_wild(stb_matcher *matcher, const char *regex, int result);
-STB_EXTERN int stb_lex(stb_matcher *m, char *str, int *len);
+STB_EXTERN int stb_lex(stb_matcher *m, const char *str, int *len);
 
 
 
 #ifdef STB_DEFINE
 
-static int stb__match_qstring(char *candidate, char *qstring, int qlen, int insensitive)
+static int stb__match_qstring(const char *candidate, const char *qstring, int qlen, int insensitive)
 {
    int i;
    if (insensitive) {
@@ -9110,7 +9122,7 @@ static int stb__match_qstring(char *candidate, char *qstring, int qlen, int inse
    return 1;
 }
 
-static int stb__find_qstring(char *candidate, char *qstring, int qlen, int insensitive)
+static int stb__find_qstring(const char *candidate, const char *qstring, int qlen, int insensitive)
 {
    char c;
 
@@ -9137,7 +9149,7 @@ static int stb__find_qstring(char *candidate, char *qstring, int qlen, int insen
    return -1;
 }
 
-int stb__wildmatch_raw2(char *expr, char *candidate, int search, int insensitive)
+int stb__wildmatch_raw2(const char *expr, const char *candidate, int search, int insensitive)
 {
    int where=0;
    int start = -1;
@@ -9225,12 +9237,12 @@ int stb__wildmatch_raw2(char *expr, char *candidate, int search, int insensitive
    return start >= 0 ? start : 0;
 }
 
-int stb__wildmatch_raw(char *expr, char *candidate, int search, int insensitive)
+int stb__wildmatch_raw(const char *expr, const char *candidate, int search, int insensitive)
 {
    char buffer[256];
    // handle multiple search strings
-   char *s = strchr(expr, ';');
-   char *last = expr;
+   const char *s = strchr(expr, ';');
+   const char *last = expr;
    while (s) {
       int z;
       // need to allow for non-writeable strings... assume they're small
@@ -9239,9 +9251,11 @@ int stb__wildmatch_raw(char *expr, char *candidate, int search, int insensitive)
          buffer[s-last] = 0;
          z = stb__wildmatch_raw2(buffer, candidate, search, insensitive);
       } else {
-         *s = 0;
-         z = stb__wildmatch_raw2(last, candidate, search, insensitive);
-         *s = ';';
+		  char *large_buffer = (char*)malloc(s-last+1);
+		  stb_strncpy(large_buffer, last, (int)(s-last+1));
+		  large_buffer[s-last] = 0;
+          z = stb__wildmatch_raw2(large_buffer, candidate, search, insensitive);
+		  free(large_buffer);
       }
       if (z >= 0) return z;
       last = s+1;
@@ -9250,22 +9264,22 @@ int stb__wildmatch_raw(char *expr, char *candidate, int search, int insensitive)
    return stb__wildmatch_raw2(last, candidate, search, insensitive);
 }
 
-int stb_wildmatch(char *expr, char *candidate)
+int stb_wildmatch(const char *expr, const char *candidate)
 {
    return stb__wildmatch_raw(expr, candidate, 0,0) >= 0;
 }
 
-int stb_wildmatchi(char *expr, char *candidate)
+int stb_wildmatchi(const char *expr, const char *candidate)
 {
    return stb__wildmatch_raw(expr, candidate, 0,1) >= 0;
 }
 
-int stb_wildfind(char *expr, char *candidate)
+int stb_wildfind(const char *expr, const char *candidate)
 {
    return stb__wildmatch_raw(expr, candidate, 1,0);
 }
 
-int stb_wildfindi(char *expr, char *candidate)
+int stb_wildfindi(const char *expr, const char *candidate)
 {
    return stb__wildmatch_raw(expr, candidate, 1,1);
 }
@@ -9345,8 +9359,8 @@ static void stb__add_edge(stb_matcher *matcher, int from, int to, int type)
    stb_arr_push(matcher->nodes[from].out, z);
 }
 
-static char *stb__reg_parse_alt(stb_matcher *m, int s, char *r, stb_uint16 *e);
-static char *stb__reg_parse(stb_matcher *matcher, int start, char *regex, stb_uint16 *end)
+static const char *stb__reg_parse_alt(stb_matcher *m, int s, const char *r, stb_uint16 *e);
+static const char *stb__reg_parse(stb_matcher *matcher, int start, const char *regex, stb_uint16 *end)
 {
    int n;
    int last_start = -1;
@@ -9499,7 +9513,7 @@ static char *stb__reg_parse(stb_matcher *matcher, int start, char *regex, stb_ui
    return regex;
 }
 
-static char *stb__reg_parse_alt(stb_matcher *matcher, int start, char *regex, stb_uint16 *end)
+static const char *stb__reg_parse_alt(stb_matcher *matcher, int start, const char *regex, stb_uint16 *end)
 {
    stb_uint16 last_end = start;
    stb_uint16 main_end;
@@ -9537,7 +9551,7 @@ static char *stb__reg_parse_alt(stb_matcher *matcher, int start, char *regex, st
    return regex;
 }
 
-static char *stb__wild_parse(stb_matcher *matcher, int start, char *str, stb_uint16 *end)
+static const char *stb__wild_parse(stb_matcher *matcher, int start, const char *str, stb_uint16 *end)
 {
    int n;
    stb_uint16 last_end;
@@ -9647,9 +9661,9 @@ static void stb__lex_reset(stb_matcher *matcher)
    matcher->dfa_start = STB__DFA_UNDEF;
 }
 
-stb_matcher *stb_regex_matcher(char *regex)
+stb_matcher *stb_regex_matcher(const char *regex)
 {
-   char *z;
+   const char *z;
    stb_uint16 end;
    stb_matcher *matcher = stb__alloc_matcher();
    if (*regex == '^') {
@@ -9681,10 +9695,10 @@ stb_matcher *stb_lex_matcher(void)
 
 int stb_lex_item(stb_matcher *matcher, const char *regex, int result)
 {
-   char *z;
+	const char *z;
    stb_uint16 end;
 
-   z = stb__reg_parse_alt(matcher, matcher->start_node, (char*) regex, &end);
+   z = stb__reg_parse_alt(matcher, matcher->start_node, regex, &end);
 
    if (z == NULL)
       return 0;
@@ -9697,10 +9711,10 @@ int stb_lex_item(stb_matcher *matcher, const char *regex, int result)
 
 int stb_lex_item_wild(stb_matcher *matcher, const char *regex, int result)
 {
-   char *z;
+	const char *z;
    stb_uint16 end;
 
-   z = stb__wild_parse(matcher, matcher->start_node, (char*) regex, &end);
+   z = stb__wild_parse(matcher, matcher->start_node, regex, &end);
 
    if (z == NULL)
       return 0;
@@ -9754,7 +9768,7 @@ static stb_uint16 * stb__eps_closure(stb_matcher *m, stb_uint16 *list)
    return list;
 }
 
-int stb_matcher_match(stb_matcher *m, char *str)
+int stb_matcher_match(stb_matcher *m, const char *str)
 {
    int result = 0;
    int i,j,y,z;
@@ -9880,7 +9894,7 @@ done:
    return node;
 }
 
-static int stb__matcher_dfa(stb_matcher *m, char *str_c, int *len)
+static int stb__matcher_dfa(stb_matcher *m, const char *str_c, int *len)
 {
    stb_uint8 *str = (stb_uint8 *) str_c;
    stb_int16 node,prevnode;
@@ -10033,20 +10047,20 @@ static int stb__matcher_dfa(stb_matcher *m, char *str_c, int *len)
    }
 }
 
-int stb_matcher_find(stb_matcher *m, char *str)
+int stb_matcher_find(stb_matcher *m, const char *str)
 {
    assert(m->does_lex == 0);
    return stb__matcher_dfa(m, str, NULL);
 }
 
-int stb_lex(stb_matcher *m, char *str, int *len)
+int stb_lex(stb_matcher *m, const char *str, int *len)
 {
    assert(m->does_lex);
    return stb__matcher_dfa(m, str, len);
 }
 
 #ifdef STB_PERFECT_HASH
-int stb_regex(char *regex, char *str)
+int stb_regex(const char *regex, const char *str)
 {
    static stb_perfect p;
    static stb_matcher ** matchers;
@@ -10123,7 +10137,7 @@ extern stb_info_struct stb_introspect_output[];
 //
 
 STB_EXTERN void stb_introspect_precompiled(stb_info_struct *compiled);
-STB_EXTERN void stb__introspect(char *path, char *file);
+STB_EXTERN void stb__introspect(char *path, const char *file);
 
 #define stb_introspect_ship()            stb__introspect(NULL, NULL, stb__introspect_output)
 
@@ -10155,7 +10169,7 @@ void stb_introspect_precompiled(stb_info_struct *compiled)
 }
 
 
-static void stb__introspect_filename(char *buffer, char *path)
+static void stb__introspect_filename(char *buffer, const char *path)
 {
    #if STB_INTROSPECT_CPP
    stb_p_sprintf(buffer stb_p_size(9999), "%s/stb_introspect.cpp", path);
@@ -10164,7 +10178,7 @@ static void stb__introspect_filename(char *buffer, char *path)
    #endif
 }
 
-static void stb__introspect_compute(char *path, char *file)
+static void stb__introspect_compute(const char *path, const char *file)
 {
    int i;
    char ** include_list = NULL;
@@ -10198,7 +10212,7 @@ static stb_info_struct *stb__introspect_info;
 
 #endif
 
-void stb__introspect(char *path, char *file, stb_info_struct *compiled)
+void stb__introspect(char *path, const char *file, stb_info_struct *compiled)
 {
    static int first=1;
    if (!first) return;
@@ -10295,10 +10309,10 @@ void stb__introspect(char *path, char *file, stb_info_struct *compiled)
 
 #ifdef STB_INTROSPECT
 // compile-time code-generator
-#define INTROSPECT(x)   int main(int argc, char **argv) { stb__introspect(__FILE__); return 0; }
+#define INTROSPECT(x)   int main(int argc, const char **argv) { stb__introspect(__FILE__); return 0; }
 #define FILE(x)
 
-void stb__introspect(char *filename)
+void stb__introspect(const char *filename)
 {
    char *file = stb_file(filename, NULL);
    char *s = file, *t, **p;

@@ -536,7 +536,7 @@ enum stb_splitpath_flag
 STB_EXTERN char * stb_skipwhite(char *s);
 STB_EXTERN char * stb_trimwhite(char *s);
 STB_EXTERN char * stb_skipnewline(char *s);
-STB_EXTERN char * stb_strncpy(char *s, char *t, int n);
+STB_EXTERN char * stb_strncpy(char *s, const char *t, int n);
 STB_EXTERN char * stb_substr(char *t, int n);
 STB_EXTERN char * stb_duplower(char *s);
 STB_EXTERN void   stb_tolower (char *s);
@@ -2619,7 +2619,7 @@ char **stb_readdir_files_mask(char *dir, char *wild) { return readdir_raw(dir, 0
 char **stb_readdir_subdirs_mask(char *dir, char *wild) { return readdir_raw(dir, 1, wild); }
 
 int stb__rec_max=0x7fffffff;
-static char **stb_readdir_rec(char **sofar, char *dir, char *filespec)
+static char **stb_readdir_rec(char **sofar, char *dir, const char *filespec)
 {
    char **files;
    char ** dirs;

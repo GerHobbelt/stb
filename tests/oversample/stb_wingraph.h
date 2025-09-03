@@ -43,7 +43,7 @@
    #ifdef WINGDIAPI
    #undef WINGDIAPI
    #endif
-   #define _WIN32_WINNT 0x0400  // WM_MOUSEWHEEL
+   #define _WIN32_WINNT 0x0A00  // WM_MOUSEWHEEL
    #include <windows.h>
 #endif
 #include <stdio.h>
@@ -121,18 +121,18 @@ extern int                     stbwingraph_request_windowed;
 
 STB_EXTERN void stbwingraph_ods(char *str, ...);
 STB_EXTERN int stbwingraph_MessageBox(stbwingraph_hwnd win, unsigned int type,
-                                              char *caption, char *text, ...);
+                                              const char *caption, const char *text, ...);
 STB_EXTERN int stbwingraph_ChangeResolution(unsigned int w, unsigned int h,
                                       unsigned int bits, int use_message_box);
 STB_EXTERN int stbwingraph_SetPixelFormat(stbwingraph_hwnd win, int color_bits,
             int alpha_bits, int depth_bits, int stencil_bits, int accum_bits);
-STB_EXTERN int stbwingraph_DefineClass(void *hinstance, char *iconname);
+STB_EXTERN int stbwingraph_DefineClass(void *hinstance, const char *iconname);
 STB_EXTERN void stbwingraph_SwapBuffers(void *win);
 STB_EXTERN void stbwingraph_Priority(int n);
 
 STB_EXTERN void stbwingraph_MakeFonts(void *window, int font_base);
 STB_EXTERN void stbwingraph_ShowWindow(void *window);
-STB_EXTERN void *stbwingraph_CreateWindow(int primary, stbwingraph_window_proc func, void *data, char *text, int width, int height, int fullscreen, int resizeable, int dest_alpha, int stencil);
+STB_EXTERN void *stbwingraph_CreateWindow(int primary, stbwingraph_window_proc func, void *data, const char *text, int width, int height, int fullscreen, int resizeable, int dest_alpha, int stencil);
 STB_EXTERN void *stbwingraph_CreateWindowSimple(stbwingraph_window_proc func, int width, int height);
 STB_EXTERN void *stbwingraph_CreateWindowSimpleFull(stbwingraph_window_proc func, int fullscreen, int ww, int wh, int fw, int fh);
 STB_EXTERN void stbwingraph_DestroyWindow(void *window);
@@ -158,7 +158,7 @@ void stbwingraph_ods(char *str, ...)
    OutputDebugString(buffer);
 }
 
-int stbwingraph_MessageBox(stbwingraph_hwnd win, unsigned int type, char *caption, char *text, ...)
+int stbwingraph_MessageBox(stbwingraph_hwnd win, unsigned int type, const char *caption, const char *text, ...)
 {
    va_list v;
    char buffer[1024];
@@ -166,6 +166,23 @@ int stbwingraph_MessageBox(stbwingraph_hwnd win, unsigned int type, char *captio
    vsprintf(buffer, text, v);
    va_end(v);
    return MessageBox(win, buffer, caption, type);
+}
+
+static void *stb_GetWindowUserData(HWND window) {
+#ifdef _WIN64
+	void *user = (void *)(intptr_t)GetWindowLongPtr(window, GWLP_USERDATA);
+#else
+	void *user = (void *)(intptr_t)GetWindowLong(window, GWL_USERDATA);
+#endif
+	return user;
+}
+
+static void stb_SetWindowUserData(HWND window, void *userdata) {
+#ifdef _WIN64
+	SetWindowLongPtr(window, GWLP_USERDATA, (LONG_PTR)(intptr_t)userdata);
+#else
+	SetWindowLong(window, GWL_USERDATA, (LONG)(intptr_t)userdata);
+#endif
 }
 
 void stbwingraph_Priority(int n)
@@ -261,7 +278,7 @@ int stbwingraph_ChangeResolution(unsigned int w, unsigned int h, unsigned int bi
 
 int stbwingraph_SetPixelFormat(stbwingraph_hwnd win, int color_bits, int alpha_bits, int depth_bits, int stencil_bits, int accum_bits)
 {
-   HDC dc = GetDC(win);
+   HDC dc = GetDC((HWND)win);
    PIXELFORMATDESCRIPTOR pfd = { sizeof(pfd) };
    int                   pixel_format;
 
@@ -313,7 +330,7 @@ static void stbwingraph__inclient(stbwingraph__window *win, int state)
    }
 }
 
-static void stbwingraph__key(stbwingraph_event *e, int type, int key, stbwingraph__window *z)
+static void stbwingraph__key(stbwingraph_event *e, stbwingraph_event_type type, int key, stbwingraph__window *z)
 {
    e->type  = type;
    e->key   = key;
@@ -329,7 +346,7 @@ static void stbwingraph__key(stbwingraph_event *e, int type, int key, stbwingrap
    e->dx = e->dy = 0;
 }
 
-static void stbwingraph__mouse(stbwingraph_event *e, int type, WPARAM wparam, LPARAM lparam, int capture, void *wnd, stbwingraph__window *z)
+static void stbwingraph__mouse(stbwingraph_event *e, stbwingraph_event_type type, WPARAM wparam, LPARAM lparam, int capture, void *wnd, stbwingraph__window *z)
 {
    static int captured = 0;
    e->type = type;
@@ -350,7 +367,7 @@ static void stbwingraph__mouse(stbwingraph_event *e, int type, WPARAM wparam, LP
    }
    if (capture) {
       if (!captured && capture == 1)
-         SetCapture(wnd);
+         SetCapture((HWND)wnd);
       captured += capture;
       if (!captured && capture == -1)
          ReleaseCapture();
@@ -358,7 +375,7 @@ static void stbwingraph__mouse(stbwingraph_event *e, int type, WPARAM wparam, LP
    }
 }
 
-static void stbwingraph__mousewheel(stbwingraph_event *e, int type, WPARAM wparam, LPARAM lparam, int capture, void *wnd, stbwingraph__window *z)
+static void stbwingraph__mousewheel(stbwingraph_event *e, stbwingraph_event_type type, WPARAM wparam, LPARAM lparam, int capture, void *wnd, stbwingraph__window *z)
 {
    // lparam seems bogus!
    static int captured = 0;
@@ -374,13 +391,14 @@ static void stbwingraph__mousewheel(stbwingraph_event *e, int type, WPARAM wpara
    e->key = ((int) wparam >> 16);
 }
 
-int stbwingraph_force_update;
+int stbwingraph_force_update = 0;
+
 static int WINAPI stbwingraph_WinProc(HWND wnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
    int allow_default = TRUE;
    stbwingraph_event e = { STBWGE__none };
    // the following line is wrong for 64-bit windows, but VC6 doesn't have GetWindowLongPtr
-   stbwingraph__window *z = (stbwingraph__window *) GetWindowLong(wnd, GWL_USERDATA);
+   stbwingraph__window *z = (stbwingraph__window *)stb_GetWindowUserData(wnd);
 
    switch (msg) {
 
@@ -389,7 +407,7 @@ static int WINAPI stbwingraph_WinProc(HWND wnd, UINT msg, WPARAM wparam, LPARAM 
          LPCREATESTRUCT lpcs = (LPCREATESTRUCT) lparam;
          assert(z == NULL);
          z = (stbwingraph__window *) lpcs->lpCreateParams;
-         SetWindowLong(wnd, GWL_USERDATA, (LONG) z);
+		 stb_SetWindowUserData(wnd, z);
          z->dc = GetDC(wnd);
          if (stbwingraph_SetPixelFormat(wnd, z->color, z->alpha, z->depth, z->stencil, z->accum)) {
             z->rc = wglCreateContext(z->dc);
@@ -397,7 +415,7 @@ static int WINAPI stbwingraph_WinProc(HWND wnd, UINT msg, WPARAM wparam, LPARAM 
                e.type = STBWGE_create;
                z->did_share_lists = FALSE;
                if (z->share_window) {
-                  stbwingraph__window *y = (stbwingraph__window *) GetWindowLong(z->share_window, GWL_USERDATA);
+                  stbwingraph__window *y = (stbwingraph__window *)stb_GetWindowUserData(z->share_window);
                   if (wglShareLists(z->rc, y->rc))
                      z->did_share_lists = TRUE;
                }
@@ -497,7 +515,7 @@ static int WINAPI stbwingraph_WinProc(HWND wnd, UINT msg, WPARAM wparam, LPARAM 
    return DefWindowProc (wnd, msg, wparam, lparam);
 }
 
-int stbwingraph_DefineClass(HINSTANCE hInstance, char *iconname)
+int stbwingraph_DefineClass(HINSTANCE hInstance, const char *iconname)
 {
    WNDCLASSEX  wndclass;
 
@@ -511,9 +529,9 @@ int stbwingraph_DefineClass(HINSTANCE hInstance, char *iconname)
    wndclass.hInstance     = hInstance;
    wndclass.hIcon         = LoadIcon(hInstance, iconname);
    wndclass.hCursor       = LoadCursor(NULL,IDC_ARROW);
-   wndclass.hbrBackground = GetStockObject(NULL_BRUSH);
-   wndclass.lpszMenuName  = "zwingraph";
-   wndclass.lpszClassName = "zwingraph";
+   wndclass.hbrBackground = (HBRUSH)GetStockObject(NULL_BRUSH);
+   wndclass.lpszMenuName  = TEXT("zwingraph");
+   wndclass.lpszClassName = TEXT("zwingraph");
    wndclass.hIconSm       = NULL;
 
    if (!RegisterClassEx(&wndclass))
@@ -523,11 +541,12 @@ int stbwingraph_DefineClass(HINSTANCE hInstance, char *iconname)
 
 void stbwingraph_ShowWindow(void *window)
 {
+   HWND wnd = (HWND)window;
    stbwingraph_event e = { STBWGE_create_postshow };
-   stbwingraph__window *z = (stbwingraph__window *) GetWindowLong(window, GWL_USERDATA);
-   ShowWindow(window, SW_SHOWNORMAL);
-   InvalidateRect(window, NULL, TRUE);
-   UpdateWindow(window);
+   stbwingraph__window *z = (stbwingraph__window *)stb_GetWindowUserData(wnd);
+   ShowWindow(wnd, SW_SHOWNORMAL);
+   InvalidateRect(wnd, NULL, TRUE);
+   UpdateWindow(wnd);
    e.handle = window;
    z->func(z->data, &e);
 }
@@ -579,8 +598,8 @@ void *stbwingraph_CreateWindow(int primary, stbwingraph_window_proc func, void *
       height = rect.bottom - rect.top;
    }
 
-   win = CreateWindow("zwingraph", text ? text : "sample", dwstyle,
-                      CW_USEDEFAULT,0, width, height,
+   win = CreateWindow(TEXT("zwingraph"), text ? text : TEXT("sample"), dwstyle,
+                      CW_USEDEFAULT, 0, width, height,
                       NULL, NULL, stbwingraph_app, z);
 
    if (win == NULL) return win;
@@ -593,7 +612,7 @@ void *stbwingraph_CreateWindow(int primary, stbwingraph_window_proc func, void *
 
    {
       stbwingraph_event e = { STBWGE_create };
-      stbwingraph__window *z = (stbwingraph__window *) GetWindowLong(win, GWL_USERDATA);
+      stbwingraph__window *z = (stbwingraph__window *)stb_GetWindowUserData(win);
       z->window = win;
       e.did_share_lists = z->did_share_lists;
       e.handle = win;
@@ -637,8 +656,9 @@ void *stbwingraph_CreateWindowSimpleFull(stbwingraph_window_proc func, int fulls
 
 void stbwingraph_DestroyWindow(void *window)
 {
-   stbwingraph__window *z = (stbwingraph__window *) GetWindowLong(window, GWL_USERDATA);
-   DestroyWindow(window);
+   HWND wnd = (HWND)window;
+   stbwingraph__window *z = (stbwingraph__window *)stb_GetWindowUserData(wnd);
+   DestroyWindow(wnd);
    free(z);
    if (stbwingraph_primary_window == window)
       stbwingraph_primary_window = NULL;
@@ -650,7 +670,7 @@ void stbwingraph_ShowCursor(void *window, int visible)
    stbwingraph__window *win;
    if (!window)
       window = stbwingraph_primary_window;
-   win = (stbwingraph__window *) GetWindowLong((HWND) window, GWL_USERDATA);
+   win = (stbwingraph__window *)stb_GetWindowUserData((HWND) window);
    hide = !visible;
    if (hide != win->hide_mouse) {
       win->hide_mouse = hide;
@@ -685,14 +705,14 @@ float stbwingraph_GetTimestep(float minimum_time)
 
 void stbwingraph_SetGLWindow(void *win)
 {
-   stbwingraph__window *z = (stbwingraph__window *) GetWindowLong(win, GWL_USERDATA);
+   stbwingraph__window *z = (stbwingraph__window *)stb_GetWindowUserData((HWND)win);
    if (z)
       wglMakeCurrent(z->dc, z->rc);
 }
 
 void stbwingraph_MakeFonts(void *window, int font_base)
 {
-   wglUseFontBitmaps(GetDC(window ? window : stbwingraph_primary_window), 0, 256, font_base);
+   wglUseFontBitmaps(GetDC(window ? (HWND)window : (HWND)stbwingraph_primary_window), 0, 256, font_base);
 }
 
 // returns 1 if WM_QUIT, 0 if 'func' returned 0
@@ -759,7 +779,7 @@ int stbwingraph_MainLoop(stbwingraph_update func, float mintime)
       if (needs_drawing || is_animating) {
          int real=1, in_client=1;
          if (stbwingraph_primary_window) {
-            stbwingraph__window *z = (stbwingraph__window *) GetWindowLong(stbwingraph_primary_window, GWL_USERDATA);
+            stbwingraph__window *z = (stbwingraph__window *)stb_GetWindowUserData((HWND)stbwingraph_primary_window);
             if (z && !z->active) {
                real = 0;
             }
@@ -784,7 +804,7 @@ void stbwingraph_SwapBuffers(void *win)
 {
    stbwingraph__window *z;
    if (win == NULL) win = stbwingraph_primary_window;
-   z = (stbwingraph__window *) GetWindowLong(win, GWL_USERDATA);
+   z = (stbwingraph__window *)stb_GetWindowUserData((HWND)win);
    if (z && z->dc)
       SwapBuffers(z->dc);
 }

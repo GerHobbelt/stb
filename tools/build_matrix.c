@@ -2,7 +2,7 @@
 #include "stb.h"
 
 // true if no error
-int run_command(char *batch_file, char *command)
+static int run_command(const char *batch_file, const char *command)
 {
    char buffer[4096];
    if (batch_file[0]) {
@@ -15,24 +15,24 @@ int run_command(char *batch_file, char *command)
 
 typedef struct
 {
-   char *compiler_name;
-   char *batchfile;
-   char *objdir;
-   char *compiler;
+   const char *compiler_name;
+   const char *batchfile;
+   const char *objdir;
+   const char *compiler;
    char *args;
    char *link;
 } compiler_info;
 
-compiler_info *compilers;
-char *shared_args;
-char *shared_link;
+static compiler_info *compilers = NULL;
+static char *shared_args = NULL;
+static char *shared_link = NULL;
 
 typedef struct
 {
    char *filelist;
 } project_info;
 
-project_info *projects;
+static project_info *projects = NULL;
 
 enum { NONE, IN_COMPILERS, IN_ARGS, IN_PROJECTS, IN_LINK };
 

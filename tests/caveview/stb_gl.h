@@ -75,18 +75,18 @@ extern void stbgl_drawRect(float x0, float y0, float x1, float y1);
 extern void stbgl_drawRectTC(float x0, float y0, float x1, float y1, float s0, float t0, float s1, float t1);
 extern void stbgl_drawBox(float x, float y, float z, float sx, float sy, float sz, int cw);
 
-extern int stbgl_hasExtension(char *ext);
+extern int stbgl_hasExtension(const char *ext);
 extern void stbgl_SimpleLight(int index, float bright, float x, float y, float z);
 extern void stbgl_GlobalAmbient(float r, float g, float b);
 
-extern int stbgl_LoadTexture(char *filename, char *props); // only if stb_image is available
+extern int stbgl_LoadTexture(const char *filename, const char *props); // only if stb_image is available
 
 extern int stbgl_TestTexture(int w);
 extern int stbgl_TestTextureEx(int w, char *scale_table, int checks_log2, int r1,int g1,int b1, int r2, int b2, int g2);
 extern unsigned int stbgl_rand(void); // internal, but exposed just in case; LCG, so use middle bits
 
-extern int stbgl_TexImage2D(int texid, int w, int h, void *data, char *props);
-extern int stbgl_TexImage2D_Extra(int texid, int w, int h, void *data, int chan, char *props, int preserve_data);
+extern int stbgl_TexImage2D(int texid, int w, int h, void *data, const char *props);
+extern int stbgl_TexImage2D_Extra(int texid, int w, int h, void *data, int chan, const char *props, int preserve_data);
 // "props" is a series of characters (and blocks of characters), a la fopen()'s mode,
 // e.g.:
 //   GLuint texid = stbgl_LoadTexture("myfile.jpg", "mbc")
@@ -174,9 +174,9 @@ extern int stbgl_TexImage2D_Extra(int texid, int w, int h, void *data, int chan,
 #include <assert.h>
 #include <memory.h>
 
-int stbgl_hasExtension(char *ext)
+int stbgl_hasExtension(const char *ext)
 {
-   const char *s = glGetString(GL_EXTENSIONS);
+   const char *s = (const char *)glGetString(GL_EXTENSIONS);
    for(;;) {
       char *e = ext;
       for (;;) {
@@ -382,7 +382,7 @@ void stbgl_positionCameraWithEulerAngles(float *loc, float *ang)
    glTranslatef(-loc[0], -loc[1], -loc[2]);
 }
 
-static int stbgl_m(char *a, char *b)
+static int stbgl_m(const char *a, const char *b)
 {
    // skip first character
    do { ++a,++b; } while (*b && *a == *b);
@@ -391,7 +391,7 @@ static int stbgl_m(char *a, char *b)
 
 #ifdef STBI_VERSION
 #ifndef STBI_NO_STDIO
-int stbgl_LoadTexture(char *filename, char *props)
+int stbgl_LoadTexture(const char *filename, const char *props)
 {
    // @TODO: handle DDS files directly
    int res;
@@ -416,7 +416,7 @@ int stbgl_LoadTexture(char *filename, char *props)
 #endif
 #endif // STBI_VERSION
 
-int stbgl_TexImage2D(int texid, int w, int h, void *data, char *props)
+int stbgl_TexImage2D(int texid, int w, int h, void *data, const char *props)
 {
    return stbgl_TexImage2D_Extra(texid, w, h, data, 0, props,1);
 }
@@ -587,7 +587,7 @@ enum
 #define STBGL_DEPTH_COMPONENT24           0x81A6
 #define STBGL_DEPTH_COMPONENT32           0x81A7
 
-int stbgl_TexImage2D_Extra(int texid, int w, int h, void *data, int chan, char *props, int preserve_data)
+int stbgl_TexImage2D_Extra(int texid, int w, int h, void *data, int chan, const char *props, int preserve_data)
 {
    static int has_s3tc = -1; // haven't checked yet
    int free_data = 0, is_compressed = 0;
@@ -810,7 +810,7 @@ int stbgl_TexImage2D_Extra(int texid, int w, int h, void *data, int chan, char *
             w = (w | (w>>1))+1;
          while (h & (h-1))
             h = (h | (h>>1))+1;
-         new_data = malloc(w * h * chan);
+         new_data = (unsigned char *)malloc(w * h * chan);
          for (j=0; j < h2; ++j) {
             memcpy(new_data + j * w * chan, (char *) data+j*w2*chan, w2*chan);
             memset(new_data + (j * w+w2) * chan, 0, (w-w2)*chan);

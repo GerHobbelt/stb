@@ -51,10 +51,10 @@ typedef struct fileinfo
   char const * filename;
 } fileinfo;
 
-int numfileinfo;
-fileinfo fi[256];
-unsigned char * bitmap;
-int bitmapw, bitmaph, bitmapp;
+static int numfileinfo = 0;
+static fileinfo fi[256] = {0};
+static unsigned char * bitmap = NULL;
+static int bitmapw = 0, bitmaph = 0, bitmapp = 0;
 
 static int use_timing_file( char const * filename, int index )
 {
@@ -102,7 +102,7 @@ static int vert_first( float weights_table[STBIR_RESIZE_CLASSIFICATIONS][4], int
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
-static void alloc_bitmap()
+static void alloc_bitmap(void)
 {
   int findex;
   int x = 0, y = 0;
@@ -301,9 +301,9 @@ static void build_comp_bitmap( float weights[STBIR_RESIZE_CLASSIFICATIONS][4], i
   }
 }
 
-static void write_bitmap()
+static void write_bitmap(void)
 {
-  stbi_write_png( "results.png", bitmapp / 3, bitmaph, 3|STB_IMAGE_BGR, bitmap, bitmapp );
+  stbi_write_png( "results.png", bitmapp / 3, bitmaph, 3 /* | STB_IMAGE_BGR */, bitmap, bitmapp);
 }
 
 
@@ -413,7 +413,7 @@ static void print_weights( float weights[STBIR_RESIZE_CLASSIFICATIONS][4], int c
   printf("\n");
 }
 
-static int windowranges[ 16 ];
+static int windowranges[16] = { 0 };
 static int windowstatus = 0;
 static DWORD trainstart = 0;
 
@@ -512,7 +512,7 @@ static void print_struct( float weight[5][STBIR_RESIZE_CLASSIFICATIONS][4], char
   }
 }
 
-static float retrain_weights[5][STBIR_RESIZE_CLASSIFICATIONS][4];
+static float retrain_weights[5][STBIR_RESIZE_CLASSIFICATIONS][4] = { 0 };
 
 static DWORD __stdcall retrain_shim( LPVOID p )
 {
@@ -531,9 +531,9 @@ static char const * gettime( int ms )
   return time;
 }
 
-static BITMAPINFOHEADER bmiHeader;
-static DWORD extrawindoww, extrawindowh;
-static HINSTANCE instance;
+static BITMAPINFOHEADER bmiHeader = { 0 };
+static DWORD extrawindoww = 0, extrawindowh = 0;
+static HINSTANCE instance = NULL;
 static int curzoom = 1;
 
 static LRESULT WINAPI WindowProc( HWND   window,
@@ -730,7 +730,7 @@ static LRESULT WINAPI WindowProc( HWND   window,
 static void SetHighDPI(void)
 {
   typedef HRESULT WINAPI setdpitype(int v);
-  HMODULE h=LoadLibrary("Shcore.dll");
+  HMODULE h=LoadLibrary(TEXT("Shcore.dll"));
   if (h)
   {
     setdpitype * sd = (setdpitype*)GetProcAddress(h,"SetProcessDpiAwareness");
@@ -739,7 +739,7 @@ static void SetHighDPI(void)
   }
 } 
 
-static void draw_window()
+static void draw_window(void)
 {
   WNDCLASS wc;
   HWND w;
@@ -802,7 +802,7 @@ static void draw_window()
   }
 }
 
-static void retrain()
+static void retrain(void)
 {
   HANDLE threads[ 16 ];
   int chanind;
@@ -825,7 +825,7 @@ static void retrain()
   if ( windowstatus ) printf( "CANCELLED!\n" );
 }
 
-static void info()
+static void info(void)
 {
   int findex;
 
@@ -889,9 +889,11 @@ static void current( int do_win, int do_bitmap )
     write_bitmap();
 }
 
-static void compare()
+static void compare(void)
 {
   int i;
+
+  numfileinfo = 1;
 
   trainstart = GetTickCount();
   windowstatus = 2; // comp mode
@@ -915,7 +917,7 @@ static void compare()
     if ( fi[0].inputrects[i*2+1] != fi[1].inputrects[i*2+1] ) goto err;
   }
     
-  alloc_bitmap( 1 );
+  alloc_bitmap();
   
   for( i = 0 ; i < fi[0].numtypes ; i++ )
   {
@@ -965,7 +967,8 @@ int main( int argc, char ** argv )
   if ( ( check ) || ( strcmp( argv[1], "bitmap" ) == 0 ) )
   {
     load_files( argv + 2, argc - 2 );
-    alloc_bitmap( numfileinfo );
+	assert(numfileinfo > 0);
+    alloc_bitmap();
     current( check, !check );
   }
   else if ( strcmp( argv[1], "info" ) == 0 ) 
@@ -987,7 +990,8 @@ int main( int argc, char ** argv )
   else if ( strcmp( argv[1], "retrain" ) == 0 ) 
   {
     load_files( argv + 2, argc - 2 );
-    alloc_bitmap( numfileinfo );
+	assert(numfileinfo > 0);
+	alloc_bitmap();
     retrain();  
   }
   else
