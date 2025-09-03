@@ -200,6 +200,7 @@
 //    void stb_textedit_drag(STB_TEXTEDIT_STRING *str, STB_TexteditState *state, float x, float y)
 //    int  stb_textedit_cut(STB_TEXTEDIT_STRING *str, STB_TexteditState *state)
 //    int  stb_textedit_paste(STB_TEXTEDIT_STRING *str, STB_TexteditState *state, STB_TEXTEDIT_CHARTYPE *text, int len)
+//    void stb_textedit_char(STB_TEXTEDIT_STRING *str, STB_TexteditState *state, STB_TEXTEDIT_CHARTYPE ch)
 //    void stb_textedit_key(STB_TEXTEDIT_STRING *str, STB_TexteditState *state, STB_TEXEDIT_KEYTYPE key)
 //
 //    Each of these functions potentially updates the string and updates the
@@ -226,6 +227,13 @@
 //      paste:
 //          call this to paste text at the current cursor point or over the current
 //          selection if there is one.
+//
+//      char:
+//          (optional) call this for character input sent to the textfield. if the
+//          framework you are using supplies you with a character or text event, it
+//          makes sense to use this function.
+//          make sure to set STB_TEXTEDIT_KEYTOTEXT to 0 for any key that generates
+//          a corresponding character or text event.
 //
 //      key:
 //          call this for keyboard inputs sent to the textfield. you can use it
@@ -518,39 +526,25 @@ static void stb_textedit_find_charpos(StbFindState *find, STB_TEXTEDIT_STRING *s
    int z = STB_TEXTEDIT_STRINGLEN(str);
    int i=0, first;
 
-   if (n == z) {
-      // if it's at the end, then find the last line -- simpler than trying to
-      // explicitly handle this case in the regular code
-      if (single_line) {
-         STB_TEXTEDIT_LAYOUTROW(&r, str, 0);
-         find->y = 0;
-         find->first_char = 0;
-         find->length = z;
-         find->height = r.ymax - r.ymin;
-         find->x = r.x1;
-      } else {
-         find->y = 0;
-         find->x = 0;
-         find->height = 1;
-         while (i < z) {
-            STB_TEXTEDIT_LAYOUTROW(&r, str, i);
-            prev_start = i;
-            i += r.num_chars;
-         }
-         find->first_char = i;
-         find->length = 0;
-         find->prev_first = prev_start;
-      }
-      return;
-   }
-
    // search rows to find the one that straddles character n
    find->y = 0;
 
    for(;;) {
       STB_TEXTEDIT_LAYOUTROW(&r, str, i);
-      if (n < i + r.num_chars)
-         break;
+
+      // generally, the row that contains n is found if n is less than the next row start.
+      // however, if n is at the end of the text there is no row past n, so another termination criterion is needed:
+      // 1. either the row is empty (this catches z == 0 too)
+      // 2. or the row does not have a trailing newline
+      // neither of these conditions can be true for any row other than the last one.
+      // to avoid checking all three conditions every iterations, the main conditions is loosened such that it includes n == z
+      // the additional single_line check is only needed if someone accidentally pasted a newline character at the end in single line mode
+      if (n <= i + r.num_chars) {
+         if(n < i + r.num_chars || r.num_chars == 0 || STB_TEXTEDIT_GETCHAR(str, i + r.num_chars - 1) != STB_TEXTEDIT_NEWLINE || single_line) {
+            break;
+         }
+      }
+
       prev_start = i;
       i += r.num_chars;
       find->y += r.baseline_y_delta;
@@ -716,6 +710,30 @@ static int stb_textedit_paste_internal(STB_TEXTEDIT_STRING *str, STB_TexteditSta
    return 0;
 }
 
+// API char: process a character input
+static void stb_textedit_char(STB_TEXTEDIT_STRING *str, STB_TexteditState *state, STB_TEXTEDIT_CHARTYPE ch)
+{
+   // can't add newline in single-line mode
+   if (ch == STB_TEXTEDIT_NEWLINE && state->single_line)
+      return;
+
+   if (state->insert_mode && !STB_TEXT_HAS_SELECTION(state) && state->cursor < STB_TEXTEDIT_STRINGLEN(str)) {
+      stb_text_makeundo_replace(str, state, state->cursor, 1, 1);
+      STB_TEXTEDIT_DELETECHARS(str, state->cursor, 1);
+      if (STB_TEXTEDIT_INSERTCHARS(str, state->cursor, &ch, 1)) {
+         ++state->cursor;
+         state->has_preferred_x = 0;
+      }
+   } else {
+      stb_textedit_delete_selection(str,state); // implicitly clamps
+      if (STB_TEXTEDIT_INSERTCHARS(str, state->cursor, &ch, 1)) {
+         stb_text_makeundo_insert(state, state->cursor, 1);
+         ++state->cursor;
+         state->has_preferred_x = 0;
+      }
+   }
+}
+
 #ifndef STB_TEXTEDIT_KEYTYPE
 #define STB_TEXTEDIT_KEYTYPE int
 #endif
@@ -729,26 +747,7 @@ retry:
          int c = STB_TEXTEDIT_KEYTOTEXT(key);
          if (c > 0) {
             STB_TEXTEDIT_CHARTYPE ch = (STB_TEXTEDIT_CHARTYPE) c;
-
-            // can't add newline in single-line mode
-            if (c == '\n' && state->single_line)
-               break;
-
-            if (state->insert_mode && !STB_TEXT_HAS_SELECTION(state) && state->cursor < STB_TEXTEDIT_STRINGLEN(str)) {
-               stb_text_makeundo_replace(str, state, state->cursor, 1, 1);
-               STB_TEXTEDIT_DELETECHARS(str, state->cursor, 1);
-               if (STB_TEXTEDIT_INSERTCHARS(str, state->cursor, &ch, 1)) {
-                  ++state->cursor;
-                  state->has_preferred_x = 0;
-               }
-            } else {
-               stb_textedit_delete_selection(str,state); // implicitly clamps
-               if (STB_TEXTEDIT_INSERTCHARS(str, state->cursor, &ch, 1)) {
-                  stb_text_makeundo_insert(state, state->cursor, 1);
-                  ++state->cursor;
-                  state->has_preferred_x = 0;
-               }
-            }
+            stb_textedit_char(str, state, ch);
          }
          break;
       }
@@ -940,9 +939,15 @@ retry:
          for (j = 0; j < row_count; ++j) {
             float  x, goal_x = state->has_preferred_x ? state->preferred_x : find.x;
 
-            // can only go up if there's a previous row
-            if (find.prev_first == find.first_char)
+            // if there's no previous row set cursor to start of the line
+            if (find.prev_first == find.first_char) {
+               state->cursor = find.first_char;
+               stb_textedit_clamp(str, state);
+
+               if (sel)
+                  state->select_end = state->cursor;
                break;
+            }
 
             // now find character position up a row
             state->cursor = find.prev_first;
