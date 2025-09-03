@@ -39,7 +39,7 @@ int delete_chars(STB_TEXTEDIT_STRING *str, int pos, int num)
 
 int insert_chars(STB_TEXTEDIT_STRING *str, int pos, STB_TEXTEDIT_CHARTYPE *newtext, int num)
 {
-   str->string = realloc(str->string, str->stringlen + num);
+   str->string = (char *)realloc(str->string, str->stringlen + num);
    memmove(&str->string[pos+num], &str->string[pos], str->stringlen - pos);
    memcpy(&str->string[pos], newtext, num);
    str->stringlen += num;

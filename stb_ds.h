@@ -386,7 +386,9 @@ CREDITS
 */
 
 #ifdef STBDS_UNIT_TESTS
+#ifndef _CRT_SECURE_NO_WARNINGS
 #define _CRT_SECURE_NO_WARNINGS
+#endif
 #endif
 
 #ifndef INCLUDE_STB_DS_H
@@ -1740,7 +1742,8 @@ void stbds_unit_tests(void)
   strreset(&sa);
 
   {
-    s.key = "a", s.value = 1;
+	  s.key = "a";
+	  s.value = 1;
     shputs(strmap, s);
     STBDS_ASSERT(*strmap[0].key == 'a');
     STBDS_ASSERT(strmap[0].key == s.key);
@@ -1749,7 +1752,8 @@ void stbds_unit_tests(void)
   }
 
   {
-    s.key = "a", s.value = 1;
+	  s.key = "a";
+	  s.value = 1;
     sh_new_strdup(strmap);
     shputs(strmap, s);
     STBDS_ASSERT(*strmap[0].key == 'a');
@@ -1759,7 +1763,8 @@ void stbds_unit_tests(void)
   }
 
   {
-    s.key = "a", s.value = 1;
+	  s.key = "a";
+	  s.value = 1;
     sh_new_arena(strmap);
     shputs(strmap, s);
     STBDS_ASSERT(*strmap[0].key == 'a');

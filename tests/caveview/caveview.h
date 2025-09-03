@@ -33,7 +33,7 @@ typedef struct
 extern void mesh_init(void);
 extern void render_init(void);
 extern void world_init(void);
-extern void ods(char *fmt, ...); // output debug string
+extern void ods(const char *fmt, ...); // output debug string
 extern void reset_cache_size(int size);
 
 

@@ -180,8 +180,8 @@ int main(int argc, char **argv)
    }
    printf("===\n");
    printf("%d %d %d\n", num_seg[0], num_seg[1], non_empty);
-   printf("%d\n", sizeof(segments[0]) * stb_arr_len(segments));
-   printf("%d\n", sizeof(segments[0]) * stb_arr_len(segments) + sizeof(segments[0]) * stb_arr_len(vsegments) + sizeof(charinfo[32])*95);
+   printf("%zu\n", sizeof(segments[0]) * stb_arr_len(segments));
+   printf("%zu\n", sizeof(segments[0]) * stb_arr_len(segments) + sizeof(segments[0]) * stb_arr_len(vsegments) + sizeof(charinfo[32])*95);
 
    printf("struct {\n"
           "    unsigned char advance;\n"

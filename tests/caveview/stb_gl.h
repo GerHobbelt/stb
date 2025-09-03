@@ -46,6 +46,7 @@
 #endif //_WIN32
 
 #include <stddef.h>
+#include <math.h>
 
 #include <gl/gl.h>
 #include <gl/glu.h>

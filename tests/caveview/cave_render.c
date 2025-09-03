@@ -17,6 +17,7 @@
 #include "sdl_thread.h"
 #include <math.h>
 #include <assert.h>
+#include <stdint.h>
 
 //#define STBVOX_CONFIG_TEX1_EDGE_CLAMP
 
@@ -275,10 +276,10 @@ void setup_uniforms(float pos[3])
          }
 
          switch (ui->type) {
-            case STBVOX_UNIFORM_TYPE_sampler: stbglUniform1iv(uniform_loc[i], ui->array_length, data); break;
-            case STBVOX_UNIFORM_TYPE_vec2:    stbglUniform2fv(uniform_loc[i], ui->array_length, data); break;
-            case STBVOX_UNIFORM_TYPE_vec3:    stbglUniform3fv(uniform_loc[i], ui->array_length, data); break;
-            case STBVOX_UNIFORM_TYPE_vec4:    stbglUniform4fv(uniform_loc[i], ui->array_length, data); break;
+            case STBVOX_UNIFORM_TYPE_sampler: stbglUniform1iv(uniform_loc[i], ui->array_length, (const GLint*)data); break;
+            case STBVOX_UNIFORM_TYPE_vec2:    stbglUniform2fv(uniform_loc[i], ui->array_length, (const GLfloat*)data); break;
+            case STBVOX_UNIFORM_TYPE_vec3:    stbglUniform3fv(uniform_loc[i], ui->array_length, (const GLfloat*)data); break;
+            case STBVOX_UNIFORM_TYPE_vec4:    stbglUniform4fv(uniform_loc[i], ui->array_length, (const GLfloat*)data); break;
          }
       }
    }
@@ -403,7 +404,7 @@ void set_tex2_alpha(float fa)
 void render_init(void)
 {
    int i;
-   char *binds[] = { "attr_vertex", "attr_face", NULL };
+   const char *binds[] = { "attr_vertex", "attr_face", NULL };
    char *vertex;
    char *fragment;
    int w=0,h=0;
@@ -420,8 +421,8 @@ void render_init(void)
 
    {
       char error_buffer[1024];
-      char *main_vertex[] = { vertex, NULL };
-      char *main_fragment[] = { fragment, NULL };
+      const char *main_vertex[] = { vertex, NULL };
+      const char *main_fragment[] = { fragment, NULL };
       main_prog = stbgl_create_program(main_vertex, main_fragment, binds, error_buffer, sizeof(error_buffer));
       if (main_prog == 0) {
          ods("Compile error for main shader: %s\n", error_buffer);
@@ -479,7 +480,7 @@ void world_init(void)
 {
    int a,b,x,y;
 
-   Uint64 start_time, end_time;
+   uint64_t start_time, end_time;
    #ifdef NDEBUG
    int range = 32;
    #else
@@ -529,9 +530,9 @@ extern SDL_mutex * chunk_cache_mutex;
 
 int mesh_worker_handler(void *data)
 {
-   mesh_worker *mw = data;
-   mw->face_buffer = malloc(FACE_BUFFER_SIZE);
-   mw->build_buffer = malloc(BUILD_BUFFER_SIZE);
+   mesh_worker *mw = (mesh_worker *)data;
+   mw->face_buffer = (uint8 *)malloc(FACE_BUFFER_SIZE);
+   mw->build_buffer = (uint8*)malloc(BUILD_BUFFER_SIZE);
 
    // this loop only works because the compiler can't
    // tell that the SDL_calls don't access mw->state;

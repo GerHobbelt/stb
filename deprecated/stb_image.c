@@ -190,7 +190,9 @@
 #ifndef STBI_NO_STDIO
 
 #if defined(_MSC_VER) && _MSC_VER >= 1400
+#ifndef _CRT_SECURE_NO_WARNINGS 
 #define _CRT_SECURE_NO_WARNINGS // suppress warnings about fopen()
+#endif
 #pragma warning(push)
 #pragma warning(disable:4996)   // suppress even more warnings about fopen()
 #endif
@@ -298,8 +300,8 @@ extern void stbi_convert_iphone_png_to_rgb(int flag_true_if_should_convert);
 
 // ZLIB client - used by PNG, available for other purposes
 
-extern char *stbi_zlib_decode_malloc_guesssize(const char *buffer, int len, int initial_size, int *outlen);
-extern char *stbi_zlib_decode_malloc_guesssize_headerflag(const char *buffer, int len, int initial_size, int *outlen, int parse_header);
+extern char *stbi_zlib_decode_malloc_guesssize(const void *buffer, int len, int initial_size, int *outlen);
+extern char *stbi_zlib_decode_malloc_guesssize_headerflag(const void *buffer, int len, int initial_size, int *outlen, int parse_header);
 extern char *stbi_zlib_decode_malloc(const char *buffer, int len, int *outlen);
 extern int   stbi_zlib_decode_buffer(char *obuffer, int olen, const char *ibuffer, int ilen);
 
@@ -2323,7 +2325,7 @@ static int do_zlib(zbuf *a, char *obuf, int olen, int exp, int parse_header)
    return parse_zlib(a, parse_header);
 }
 
-char *stbi_zlib_decode_malloc_guesssize(const char *buffer, int len, int initial_size, int *outlen)
+char *stbi_zlib_decode_malloc_guesssize(const void *buffer, int len, int initial_size, int *outlen)
 {
    zbuf a;
    char *p = (char *) malloc(initial_size);
@@ -2344,7 +2346,7 @@ char *stbi_zlib_decode_malloc(char const *buffer, int len, int *outlen)
    return stbi_zlib_decode_malloc_guesssize(buffer, len, 16384, outlen);
 }
 
-char *stbi_zlib_decode_malloc_guesssize_headerflag(const char *buffer, int len, int initial_size, int *outlen, int parse_header)
+char *stbi_zlib_decode_malloc_guesssize_headerflag(const void *buffer, int len, int initial_size, int *outlen, int parse_header)
 {
    zbuf a;
    char *p = (char *) malloc(initial_size);
@@ -2804,7 +2806,7 @@ static int parse_png_file(png *z, int scan, int req_comp)
             if (first) return e("first not IHDR", "Corrupt PNG");
             if (scan != SCAN_load) return 1;
             if (z->idata == NULL) return e("no IDAT","Corrupt PNG");
-            z->expanded = (stbi__uint8 *) stbi_zlib_decode_malloc_guesssize_headerflag((char *) z->idata, ioff, 16384, (int *) &raw_len, !iphone);
+            z->expanded = (stbi__uint8 *) stbi_zlib_decode_malloc_guesssize_headerflag(z->idata, ioff, 16384, (int *) &raw_len, !iphone);
             if (z->expanded == NULL) return 0; // zlib should set error
             free(z->idata); z->idata = NULL;
             if ((req_comp == s->img_n+1 && req_comp != 3 && !pal_img_n) || has_trans)

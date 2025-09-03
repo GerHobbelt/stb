@@ -29,6 +29,12 @@ static int get_milliseconds()
 
 #endif
 
+#if !defined(TIME_SIMD) && !defined(TIME_SCALAR)
+#if defined(_MSC_VER)
+#define TIME_SIMD 1
+#endif
+#endif
+
 #if defined(TIME_SIMD)
   // default for most platforms
 #elif defined(TIME_SCALAR)
@@ -123,9 +129,9 @@ int main( int argc, char ** argv )
     exit(1);
   }
 
-  input = malloc( 4*1200*1200 );
+  input = (unsigned char *)malloc( 4*1200*1200 );
   memset( input, 0x80, 4*1200*1200 );
-  output = malloc( 4*10000*10000ULL );
+  output = (unsigned char *)malloc( 4*10000*10000ULL );
   
   dimensionx = atoi( argv[1] );
   dimensiony = atoi( argv[2] );
@@ -134,7 +140,7 @@ int main( int argc, char ** argv )
 
   timing_count = dimensionx * dimensiony * INSIZES * TYPESCOUNT;
 
-  file = malloc( sizeof(int) * ( 2 * timing_count + HEADER ) );
+  file = (int *)malloc( sizeof(int) * ( 2 * timing_count + HEADER ) );
   ts = file + HEADER;
 
   totalms = get_milliseconds();  

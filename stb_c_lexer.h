@@ -366,9 +366,9 @@ static double stb__clex_pow(double base, unsigned int exponent)
    return value;
 }
 
-static double stb__clex_parse_float(char *p, char **q)
+static double stb__clex_parse_float(const char *p, const char **q)
 {
-   char *s = p;
+   const char *s = p;
    double value=0;
    int base=10;
    int exponent=0;
@@ -688,7 +688,7 @@ int stb_c_lexer_get_token(stb_lexer *lexer)
          #if defined(STB__clex_hex_ints) || defined(STB__clex_hex_floats)
             if (p+1 != lexer->eof) {
                if (p[1] == 'x' || p[1] == 'X') {
-                  char *q;
+                  const char *q;
 
                   #ifdef STB__clex_hex_floats
                   for (q=p+2;
@@ -740,7 +740,11 @@ int stb_c_lexer_get_token(stb_lexer *lexer)
          // so have to do float first
 
          /* FALL THROUGH */
-      __attribute__((fallthrough));
+#if !defined(_MSC_VER)
+         __attribute__((fallthrough));
+#else
+		 [[fallthrough]];
+#endif
       case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
 
          #ifdef STB__clex_decimal_floats
@@ -810,7 +814,9 @@ int stb_c_lexer_get_token(stb_lexer *lexer)
 #endif // STB_C_LEXER_IMPLEMENTATION
 
 #ifdef STB_C_LEXER_SELF_TEST
+#ifndef _CRT_SECURE_NO_WARNINGS
 #define _CRT_SECURE_NO_WARNINGS
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 

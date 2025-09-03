@@ -4,5 +4,5 @@
 
 // Just to make sure it will build properly with a c compiler
 
-int main() {
+int main(void) {
 }

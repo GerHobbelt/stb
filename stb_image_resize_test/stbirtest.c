@@ -435,7 +435,7 @@ static void * convert8to16( unsigned char * i, int w, int h, int c )
   unsigned short * ret;
   int p;
 
-  ret = malloc( w*h*c*sizeof(short) );
+  ret = (unsigned short*)malloc( w*h*c*sizeof(short) );
   for(p = 0 ; p < (w*h*c) ; p++ )
   {
     ret[p]=(short)((((int)i[p])<<8)+i[p]);
@@ -449,7 +449,7 @@ static void * convert8tof( unsigned char * i, int w, int h, int c )
   float * ret;
   int p;
 
-  ret = malloc( w*h*c*sizeof(float) );
+  ret = (float*)malloc( w*h*c*sizeof(float) );
   for(p = 0 ; p < (w*h*c) ; p++ )
   {
     ret[p]=((float)i[p])*(1.0f/255.0f);
@@ -463,7 +463,7 @@ static void * convert8tohf( unsigned char * i, int w, int h, int c )
   stbir__FP16 * ret;
   int p;
 
-  ret = malloc( w*h*c*sizeof(stbir__FP16) );
+  ret = (stbir__FP16 *)malloc( w*h*c*sizeof(stbir__FP16) );
   for(p = 0 ; p < (w*h*c) ; p++ )
   {
     ret[p]=stbir__float_to_half(((float)i[p])*(1.0f/255.0f));
@@ -477,7 +477,7 @@ static void * convert8tohff( unsigned char * i, int w, int h, int c )
   float * ret;
   int p;
 
-  ret = malloc( w*h*c*sizeof(float) );
+  ret = (float*)malloc( w*h*c*sizeof(float) );
   for(p = 0 ; p < (w*h*c) ; p++ )
   {
     ret[p]=stbir__half_to_float(stbir__float_to_half(((float)i[p])*(1.0f/255.0f)));
@@ -557,8 +557,8 @@ int main( int argc, char ** argv )
 
   printf("Input %dx%d (%d channels)\n",ix,iy,ic);
 
-  ir1 = malloc( 4 * 4 * 3000 * 3000ULL );
-  ir2 = malloc( 4 * 4 * 3000 * 3000ULL );
+  ir1 = (char*)malloc( 4 * 4 * 3000 * 3000ULL );
+  ir2 = (char*)malloc( 4 * 4 * 3000 * 3000ULL );
 
   szhs[0] = getprime( iy/SHRINKBYH );
   szhs[1] = iy;

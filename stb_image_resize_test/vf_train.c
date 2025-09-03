@@ -23,7 +23,7 @@ static int * file_read( char const * filename )
   fseek( f, 0, SEEK_END);
   s = ftell( f );
   fseek( f, 0, SEEK_SET);
-  m = malloc( s + 4 );
+  m = (int *)malloc( s + 4 );
   m[0] = (int)s;
   fread( m+1, 1, s, f);
   fclose(f);
@@ -141,7 +141,7 @@ static void alloc_bitmap()
   bitmapw = w;
   bitmaph = h;
   bitmapp = w * 3; // RGB
-  bitmap = malloc( bitmapp * bitmaph );
+  bitmap = (unsigned char *)malloc( bitmapp * bitmaph );
 
   memset( bitmap, 0, bitmapp * bitmaph );
 }

@@ -532,7 +532,7 @@ void stbwingraph_ShowWindow(void *window)
    z->func(z->data, &e);
 }
 
-void *stbwingraph_CreateWindow(int primary, stbwingraph_window_proc func, void *data, char *text,
+void *stbwingraph_CreateWindow(int primary, stbwingraph_window_proc func, void *data, const char *text,
            int width, int height, int fullscreen, int resizeable, int dest_alpha, int stencil)
 {
    HWND win;

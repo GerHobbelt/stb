@@ -1,5 +1,5 @@
 #define STB_DEFINE
-#include "../stb.h"
+#include "../deprecated/stb.h"
 
 // create unicode mappings
 //
@@ -187,7 +187,7 @@ size_t find_packed(uval **packed, uval *data, int len, int aligned, int fastpath
    return p;
 }
 
-void output_table(char *name1, char *name2, uval *data, int length, int sign, char **names)
+void output_table(const char *name1, const char *name2, uval *data, int length, int sign, char **names)
 {
    char temp[20];
    uval maxv = 0;
@@ -231,7 +231,7 @@ void output_table(char *name1, char *name2, uval *data, int length, int sign, ch
    printf("};\n");
 }
 
-void output_table_with_trims(char *name1, char *name2, uval *data, int length)
+void output_table_with_trims(const char *name1, const char *name2, uval *data, int length)
 {
    uval maxt=0, maxp=0;
    int i,d,s,e, count;
@@ -522,7 +522,7 @@ table pack_for_mode(table *t, int mode, char *table_name)
    }
 
    if (table_name)
-      printf("// above tables should be %d bytes\n", extra_size);
+      printf("// above tables should be %zu bytes\n", extra_size);
 
    maxv = 0;
    for (i=0; i < stb_arr_len(index); ++i)
@@ -657,7 +657,7 @@ void optimize_table(table *t, char *table_name)
       path >>= 7;
    }
 
-   printf("// modes: %d\n", r.path);
+   printf("// modes: %zu\n", r.path);
    s = *t;
    while (num_modes > 0) {
       char name[256];

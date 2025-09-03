@@ -417,6 +417,17 @@ extern "C" {
 #endif
 #endif
 
+#if defined(__GCC__)
+#define PRAGMA_GCC_IVDEP()		_Pragma("GCC ivdep")
+#else
+#define PRAGMA_GCC_IVDEP()
+#endif
+#if defined(__clang__)
+#define PRAGMA_CLANG_LOOP_VECTORIZE_ASSUME_SAFETY()		_Pragma("clang loop vectorize(assume_safety)")
+#else
+#define PRAGMA_CLANG_LOOP_VECTORIZE_ASSUME_SAFETY()
+#endif
+
 //////////////////////////////////////////////////////////////////////////////
 //
 // PRIMARY API - works on images of any type
@@ -554,8 +565,8 @@ STBIDEF void stbi_set_flip_vertically_on_load_thread(int flag_true_if_should_fli
 
 // ZLIB client - used by PNG, available for other purposes
 
-STBIDEF char *stbi_zlib_decode_malloc_guesssize(const char *buffer, int len, int initial_size, int *outlen);
-STBIDEF char *stbi_zlib_decode_malloc_guesssize_headerflag(const char *buffer, int len, int initial_size, int *outlen, int parse_header);
+STBIDEF char *stbi_zlib_decode_malloc_guesssize(const void *buffer, int len, int initial_size, int *outlen);
+STBIDEF char *stbi_zlib_decode_malloc_guesssize_headerflag(const void *buffer, int len, int initial_size, int *outlen, int parse_header);
 STBIDEF char *stbi_zlib_decode_malloc(const char *buffer, int len, int *outlen);
 STBIDEF int   stbi_zlib_decode_buffer(char *obuffer, int olen, const char *ibuffer, int ilen);
 
@@ -1034,7 +1045,8 @@ enum
     STBI_ERROR_BAD_PIC,
     STBI_ERROR_BAD_GIF,
     STBI_ERROR_BAD_HDR,
-    STBI_ERROR_BAD_PNM
+    STBI_ERROR_BAD_PNM,
+	STBI_ERROR_BAD_SGI
 };
 
 static
@@ -1274,16 +1286,18 @@ static stbi_uc *stbi__convert_16_to_8(stbi__uint16 *orig, int w, int h, int chan
 
    if (from16_linear) {
        //convert 16-bit linear values to 8-bit sRGB
-	   #pragma GCC ivdep
-	   #pragma clang loop vectorize(assume_safety)
+	   PRAGMA_GCC_IVDEP();
+	   PRAGMA_CLANG_LOOP_VECTORIZE_ASSUME_SAFETY();
+
        for (i = 0; i < img_len; ++i) {
            float v = pow(float(orig[i]) * (1.0f / 65536), 1 / 2.2f);
            reduced[i] = (stbi_uc)(v * 255);
        }
    }
    else {
-	   #pragma GCC ivdep
-	   #pragma clang loop vectorize(assume_safety)
+	   PRAGMA_GCC_IVDEP();
+	   PRAGMA_CLANG_LOOP_VECTORIZE_ASSUME_SAFETY();
+
        for (i = 0; i < img_len; ++i)
            reduced[i] = (stbi_uc)((orig[i] >> 8) & 0xFF); // top half of each byte is sufficient approx of 16->8 bit scaling
    }
@@ -1484,7 +1498,7 @@ STBIDEF stbi_uc *stbi_load_from_file(FILE *f, int *x, int *y, int *comp, int req
          // fseek() failed; we can no longer maintain the file cursor position
          // guarantee of this function, so return null.
          STBI_FREE(result);
-         return stbi__errpuc("bad file", "fseek() failed; seek position unreliable");
+         return stbi__errpuc("bad file", "fseek() failed; seek position unreliable", STBI_ERROR_FILE_IO);
       }
    }
    return result;
@@ -1502,7 +1516,7 @@ STBIDEF stbi__uint16 *stbi_load_from_file_16(FILE *f, int *x, int *y, int *comp,
          // fseek() failed; we can no longer maintain the file cursor position
          // guarantee of this function, so return null.
          STBI_FREE(result);
-         return (stbi__uint16 *) stbi__errpuc("bad file", "fseek() failed; seek position unreliable");
+         return (stbi__uint16 *) stbi__errpuc("bad file", "fseek() failed; seek position unreliable", STBI_ERROR_FILE_IO);
       }
    }
    return result;
@@ -1663,11 +1677,11 @@ STBIDEF int stbi_is_hdr_from_file(FILE *f)
    #ifndef STBI_NO_HDR
    int res;
    long pos = ftell(f);
-   if (pos < 0) return stbi__err("bad file", "ftell() failed");
+   if (pos < 0) return stbi__err("bad file", "ftell() failed", STBI_ERROR_FILE_IO);
    stbi__context s;
    stbi__start_file(&s,f);
    res = stbi__hdr_test(&s);
-   if (fseek(f, pos, SEEK_SET) != 0) return stbi__err("bad file", "fseek() failed");
+   if (fseek(f, pos, SEEK_SET) != 0) return stbi__err("bad file", "fseek() failed", STBI_ERROR_FILE_IO);
    return res;
    #else
    STBI_NOTUSED(f);
@@ -1888,11 +1902,15 @@ static unsigned char *stbi__convert_format(unsigned char *data, int img_n, int r
    }
 
    for (j=0; j < (int) y; ++j) {
-      unsigned char * restrict src  = data + j * x * img_n   ;
-      unsigned char * restrict dest = good + j * x * req_comp;
+      unsigned char * __restrict src  = data + j * x * img_n   ;
+      unsigned char * __restrict dest = good + j * x * req_comp;
 
       #define STBI__COMBO(a,b)  ((a)*8+(b))
-      #define STBI__CASE(a,b)   case STBI__COMBO(a,b): _Pragma("GCC ivdep") _Pragma("clang loop vectorize(assume_safety)") for(i=x-1; i >= 0; --i, src += a, dest += b)
+      #define STBI__CASE(a,b)   case STBI__COMBO(a,b):								\
+									PRAGMA_GCC_IVDEP()								\
+									PRAGMA_CLANG_LOOP_VECTORIZE_ASSUME_SAFETY()		\
+									for(i=x-1; i >= 0; --i, src += a, dest += b)
+
       // convert source image with img_n components to one with req_comp components;
       // avoid switch per pixel, so use switch per scanline and massive macros
       switch (STBI__COMBO(img_n, req_comp)) {
@@ -3196,8 +3214,8 @@ static int stbi__parse_entropy_coded_data(stbi__jpeg *z)
 static void stbi__jpeg_dequantize(short *data, stbi__uint16 *dequant)
 {
    int i;
-   #pragma GCC ivdep
-   #pragma clang loop vectorize(assume_safety)
+   PRAGMA_GCC_IVDEP();
+   PRAGMA_CLANG_LOOP_VECTORIZE_ASSUME_SAFETY();
    for (i=0; i < 64; ++i)
       data[i] *= dequant[i];
 }
@@ -3562,7 +3580,7 @@ static int stbi__decode_jpeg_image(stbi__jpeg *j)
          if (NL != j->s->img_y) return stbi__err("bad DNL height", "Corrupt JPEG", STBI_ERROR_BAD_JPEG);
          m = stbi__get_marker(j);
       } else {
-         if (!stbi__process_marker(j, m)) return stbi__err("bad marker","Corrupt JPEG");
+		  if (!stbi__process_marker(j, m)) return stbi__err("bad marker", "Corrupt JPEG", STBI_ERROR_BAD_JPEG);
          m = stbi__get_marker(j);
       }
    }
@@ -3592,8 +3610,8 @@ static stbi_uc* stbi__resample_row_v_2(stbi_uc *out, stbi_uc *in_near, stbi_uc *
    // need to generate two samples vertically for every one in input
    int i;
    STBI_NOTUSED(hs);
-   #pragma GCC ivdep
-   #pragma clang loop vectorize(assume_safety)
+   PRAGMA_GCC_IVDEP();
+   PRAGMA_CLANG_LOOP_VECTORIZE_ASSUME_SAFETY();
    for (i=0; i < w; ++i)
       out[i] = stbi__div4(3*in_near[i] + in_far[i] + 2);
    return out;
@@ -3613,8 +3631,8 @@ static stbi_uc*  stbi__resample_row_h_2(stbi_uc *out, stbi_uc *in_near, stbi_uc 
 
    out[0] = input[0];
    out[1] = stbi__div4(input[0]*3 + input[1] + 2);
-   #pragma GCC ivdep
-   #pragma clang loop vectorize(assume_safety)
+   PRAGMA_GCC_IVDEP();
+   PRAGMA_CLANG_LOOP_VECTORIZE_ASSUME_SAFETY();
    for (i=1; i < w-1; ++i) {
       int n = 3*input[i]+2;
       out[i*2+0] = stbi__div4(n+input[i-1]);
@@ -3778,8 +3796,8 @@ static stbi_uc *stbi__resample_row_generic(stbi_uc *out, stbi_uc *in_near, stbi_
    int i,j;
    STBI_NOTUSED(in_far);
    for (i=0; i < w; ++i)
-      #pragma GCC ivdep
-      #pragma clang loop vectorize(assume_safety)
+	   PRAGMA_GCC_IVDEP();
+	   PRAGMA_CLANG_LOOP_VECTORIZE_ASSUME_SAFETY();
       for (j=0; j < hs; ++j)
          out[i*hs+j] = in_near[i];
    return out;
@@ -4648,7 +4666,7 @@ static int stbi__do_zlib(stbi__zbuf *a, char *obuf, int olen, int exp, int parse
    return stbi__parse_zlib(a, parse_header);
 }
 
-STBIDEF char *stbi_zlib_decode_malloc_guesssize(const char *buffer, int len, int initial_size, int *outlen)
+STBIDEF char *stbi_zlib_decode_malloc_guesssize(const void *buffer, int len, int initial_size, int *outlen)
 {
    stbi__zbuf a;
    char *p = (char *) stbi__malloc(initial_size);
@@ -4669,7 +4687,7 @@ STBIDEF char *stbi_zlib_decode_malloc(char const *buffer, int len, int *outlen)
    return stbi_zlib_decode_malloc_guesssize(buffer, len, 16384, outlen);
 }
 
-STBIDEF char *stbi_zlib_decode_malloc_guesssize_headerflag(const char *buffer, int len, int initial_size, int *outlen, int parse_header)
+STBIDEF char *stbi_zlib_decode_malloc_guesssize_headerflag(const void *buffer, int len, int initial_size, int *outlen, int parse_header)
 {
    stbi__zbuf a;
    char *p = (char *) stbi__malloc(initial_size);
@@ -5336,7 +5354,7 @@ static int stbi__parse_png_file(stbi__png *z, int scan, int req_comp)
             // initial guess for decoded data size to avoid unnecessary reallocs
             bpl = (s->img_x * z->depth + 7) / 8; // bytes per line, per component
             raw_len = bpl * s->img_y * s->img_n /* pixels */ + s->img_y /* filter mode per row */;
-            z->expanded = (stbi_uc *) stbi_zlib_decode_malloc_guesssize_headerflag((char *) z->idata, ioff, raw_len, (int *) &raw_len, !is_iphone);
+            z->expanded = (stbi_uc *) stbi_zlib_decode_malloc_guesssize_headerflag(z->idata, ioff, raw_len, (int *) &raw_len, !is_iphone);
             if (z->expanded == NULL) return 0; // zlib should set error
             STBI_FREE(z->idata); z->idata = NULL;
             if ((req_comp == s->img_n+1 && req_comp != 3 && !pal_img_n) || has_trans)
@@ -5920,8 +5938,8 @@ static void *stbi__sgi_load(stbi__context *s, int *x, int *y, int *comp, int req
     // Read SGI header
     magic = stbi__get16be(s);
     if (magic != 0x01DA) {
-        return stbi__errpuc("not SGI image", "SGI image corrupt");
-    }
+        return stbi__errpuc("not SGI image", "SGI image corrupt", STBI_ERROR_BAD_SGI);
+	}
 
     compression = stbi__get8(s);
     bytes_per_channel = stbi__get8(s);
@@ -5946,19 +5964,19 @@ static void *stbi__sgi_load(stbi__context *s, int *x, int *y, int *comp, int req
 
     // Validate header
     if (bytes_per_channel != 1 || channels_in_file < 1 || channels_in_file > 4 ) {
-        return stbi__errpuc("unsupported SGI format", "SGI image has unsupported format");
-    }
+		return stbi__errpuc("unsupported SGI format", "SGI image has unsupported format", STBI_ERROR_UNSUPPORTED_FORMAT);
+	}
 
     if (dimension != 2 && dimension != 3) {
-        return stbi__errpuc("unsupported SGI dimension", "SGI image has unsupported dimension");
-    }
+		return stbi__errpuc("unsupported SGI dimension", "SGI image has unsupported dimension", STBI_ERROR_UNSUPPORTED_IMAGE_TYPE);
+	}
 
     *x = xsize;
     *y = ysize;
     *comp = channels_in_file;
 
     result = (stbi_uc *)stbi__malloc_mad3(xsize, ysize, channels_in_file, 0);
-    if (!result) return stbi__errpuc("outofmem", "Out of memory");
+	if (!result) return stbi__errpuc("outofmem", "Out of memory", STBI_ERROR_OUT_OF_MEMORY);
 
     if (compression == 0) 
     {
@@ -5967,7 +5985,7 @@ static void *stbi__sgi_load(stbi__context *s, int *x, int *y, int *comp, int req
         if (!channel_data) 
         {
             STBI_FREE(result);
-            return stbi__errpuc("outofmem", "Out of memory");
+			return stbi__errpuc("outofmem", "Out of memory", STBI_ERROR_OUT_OF_MEMORY);
         }
 
         // Allocate temporary storage for each channel
@@ -5979,8 +5997,8 @@ static void *stbi__sgi_load(stbi__context *s, int *x, int *y, int *comp, int req
                     STBI_FREE(channel_data[i]);
                 STBI_FREE(channel_data);
                 STBI_FREE(result);
-                return stbi__errpuc("outofmem", "Out of memory");
-            }
+				return stbi__errpuc("outofmem", "Out of memory", STBI_ERROR_OUT_OF_MEMORY);
+			}
         }
 
         // Read planar data
@@ -6061,8 +6079,8 @@ static void *stbi__sgi_load(stbi__context *s, int *x, int *y, int *comp, int req
             STBI_FREE(length_table);
             STBI_FREE(decompressed_data);
             STBI_FREE(result);
-            return stbi__errpuc("outofmem", "Out of memory");
-        }
+			return stbi__errpuc("outofmem", "Out of memory", STBI_ERROR_OUT_OF_MEMORY);
+		}
 
         // Read offset and length tables
         for (i = 0; i < table_size; i++) 
@@ -6133,8 +6151,8 @@ static void *stbi__sgi_load(stbi__context *s, int *x, int *y, int *comp, int req
     else 
     {
         STBI_FREE(result);
-        return stbi__errpuc("unsupported compression", "SGI image uses unsupported compression");
-    }
+		return stbi__errpuc("unsupported compression", "SGI image uses unsupported compression", STBI_ERROR_UNSUPPORTED_FORMAT);
+	}
 
     // convert to target component count
     if (req_comp && ((req_comp > 0) && (req_comp <= 4)))
@@ -6383,7 +6401,7 @@ static void *stbi__tga_load(stbi__context *s, int *x, int *y, int *comp, int req
          stbi_uc *tga_row = tga_data + row*tga_width*tga_comp;
          if(!stbi__getn(s, tga_row, tga_width * tga_comp)) {
             STBI_FREE(tga_data);
-            return stbi__errpuc("bad palette", "Corrupt TGA");
+			return stbi__errpuc("bad palette", "Corrupt TGA", STBI_ERROR_BAD_TGA);
          }
       }
    } else  {
@@ -7635,7 +7653,7 @@ stbi_uc *stbi_gif_decode(stbi_gif_context *gif, int *x, int *y, int *delay_in_ms
    if (d->num_frames <= 2 && d->frame_number < d->num_frames) {
       stbi_uc *res = (stbi_uc *) stbi__malloc(len);
       if (!res) {
-         return stbi__errpuc("outofmem", "Out of memory");
+		  return stbi__errpuc("outofmem", "Out of memory", STBI_ERROR_OUT_OF_MEMORY);
       }
       memcpy(res, d->frame_number == 0 && d->prev_frame ? d->prev_frame : d->gif.out, len);
       *x = d->gif.w;
@@ -7652,7 +7670,7 @@ stbi_uc *stbi_gif_decode(stbi_gif_context *gif, int *x, int *y, int *delay_in_ms
       prev = (stbi_uc *) stbi__malloc(len);
       memcpy(prev, d->gif.out, len);
       if (!prev) {
-         return stbi__errpuc("outofmem", "Out of memory");
+		  return stbi__errpuc("outofmem", "Out of memory", STBI_ERROR_OUT_OF_MEMORY);
       }
       prev_delay = d->gif.delay;
    }
@@ -7671,7 +7689,7 @@ stbi_uc *stbi_gif_decode(stbi_gif_context *gif, int *x, int *y, int *delay_in_ms
    if (!res) {
       res = (stbi_uc *) stbi__malloc(len);
       if (!res) {
-         return stbi__errpuc("outofmem", "Out of memory");
+		  return stbi__errpuc("outofmem", "Out of memory", STBI_ERROR_OUT_OF_MEMORY);
       }
    }
    memcpy(res, dat, len);
@@ -7822,7 +7840,7 @@ static float *stbi__hdr_load(stbi__context *s, int *x, int *y, int *comp, int re
            main_decode_loop:
             if (!stbi__getn(s, rgbe, 4)) {
                STBI_FREE(hdr_data);
-               return stbi__errpf("invalid decoded scanline length", "corrupt HDR");
+			   return stbi__errpf("invalid decoded scanline length", "corrupt HDR", STBI_ERROR_BAD_HDR);
             }
             stbi__hdr_convert(hdr_data + j * width * req_comp + i * req_comp, rgbe, req_comp);
          }
@@ -8322,10 +8340,10 @@ STBIDEF int stbi_info_from_file(FILE *f, int *x, int *y, int *comp)
    int r;
    stbi__context s;
    long pos = ftell(f);
-   if (pos < 0) return stbi__err("bad file", "ftell() failed");
+   if (pos < 0) return stbi__err("bad file", "ftell() failed", STBI_ERROR_FILE_IO);
    stbi__start_file(&s, f);
    r = stbi__info_main(&s,x,y,comp);
-   if (fseek(f, pos, SEEK_SET) != 0) return stbi__err("bad file", "fseek() failed");
+   if (fseek(f, pos, SEEK_SET) != 0) return stbi__err("bad file", "fseek() failed", STBI_ERROR_FILE_IO);
    return r;
 }
 
@@ -8344,10 +8362,10 @@ STBIDEF int stbi_is_16_bit_from_file(FILE *f)
    int r;
    stbi__context s;
    long pos = ftell(f);
-   if (pos < 0) return stbi__err("bad file", "ftell() failed");
+   if (pos < 0) return stbi__err("bad file", "ftell() failed", STBI_ERROR_FILE_IO);
    stbi__start_file(&s, f);
    r = stbi__is_16_main(&s);
-   if (fseek(f, pos, SEEK_SET) != 0) return stbi__err("bad file", "fseek() failed");
+   if (fseek(f, pos, SEEK_SET) != 0) return stbi__err("bad file", "fseek() failed", STBI_ERROR_FILE_IO);
    return r;
 }
 #endif // !STBI_NO_STDIO

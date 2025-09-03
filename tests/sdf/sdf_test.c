@@ -28,8 +28,8 @@ fontchar fdata[128];
 #define BITMAP_H  800
 unsigned char bitmap[BITMAP_H][BITMAP_W][3];
 
-char *sample = "This is goofy text, size %d!";
-char *small_sample = "This is goofy text, size %d! Really needs in-shader supersampling to look good.";
+const char *sample = "This is goofy text, size %d!";
+const char *small_sample = "This is goofy text, size %d! Really needs in-shader supersampling to look good.";
 
 void blend_pixel(int x, int y, int color, float alpha)
 {
@@ -121,7 +121,7 @@ int main(int argc, char **argv)
    float scale, ypos;
    stbtt_fontinfo font;
    void *data = stb_file("c:/windows/fonts/times.ttf", NULL);
-   stbtt_InitFont(&font, data, 0);
+   stbtt_InitFont(&font, (const unsigned char *)data, 0);
 
    scale = stbtt_ScaleForPixelHeight(&font, sdf_size);
 

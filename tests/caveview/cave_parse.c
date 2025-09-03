@@ -65,7 +65,7 @@ static region *load_region(int reg_x, int reg_z)
 
    open_file(reg_x, reg_z);
 
-   r = malloc(sizeof(*r));
+   r = (region *)malloc(sizeof(*r));
 
    if (last_region == NULL) {
       memset(r, 0, sizeof(*r));
@@ -145,7 +145,7 @@ static compressed_chunk *get_compressed_chunk(int chunk_x, int chunk_z)
          deref_compressed_chunk(cc);
          cached_chunk[slot_z][slot_x] = NULL;
       }
-      cc = malloc(sizeof(*cc));
+      cc = (compressed_chunk *)malloc(sizeof(*cc));
       cc->x = chunk_x;
       cc->z = chunk_z;
       {
@@ -157,7 +157,7 @@ static compressed_chunk *get_compressed_chunk(int chunk_x, int chunk_z)
             open_file(reg_x, reg_z);
             fseek(last_region, (code>>8)*4096, SEEK_SET);
             cc->len = (code&255)*4096;
-            cc->data = malloc(cc->len);
+            cc->data = (uint8 *)malloc(cc->len);
             fread(cc->data, 1, cc->len, last_region);
          } else {
             cc->len = 0;
@@ -396,7 +396,7 @@ static parse_chunk *minecraft_chunk_parse(unsigned char *data, size_t len)
    while ((s = nbt_peek(n)) != NULL) {
       if (!strcmp(s, "Level")) {
          int *height;
-         c = malloc(sizeof(*c));
+         c = (parse_chunk *)malloc(sizeof(*c));
          #ifdef FAST_CHUNK
          memset(c, 0, sizeof(*c));
          c->pointer_to_free = data;
@@ -429,16 +429,16 @@ static parse_chunk *minecraft_chunk_parse(unsigned char *data, size_t len)
                      if (!strcmp(s, "Y"))
                         yi = * (uint8 *) nbt_get(n, TAG_Byte, 0);
                      else if (!strcmp(s, "BlockLight")) {
-                        light = nbt_get(n, TAG_Byte_Array, &len);
+                        light = (uint8 *)nbt_get(n, TAG_Byte_Array, &len);
                         assert(len == 2048);
                      } else if (!strcmp(s, "Blocks")) {
-                        blocks = nbt_get(n, TAG_Byte_Array, &len);
+                        blocks = (uint8 *)nbt_get(n, TAG_Byte_Array, &len);
                         assert(len == 4096);
                      } else if (!strcmp(s, "Data")) {
-                        data = nbt_get(n, TAG_Byte_Array, &len);
+                        data = (uint8 *)nbt_get(n, TAG_Byte_Array, &len);
                         assert(len == 2048);
                      } else if (!strcmp(s, "SkyLight")) {
-                        skylight = nbt_get(n, TAG_Byte_Array, &len);
+                        skylight = (uint8 *)nbt_get(n, TAG_Byte_Array, &len);
                         assert(len == 2048);
                      }
                   }
@@ -492,7 +492,8 @@ static parse_chunk *minecraft_chunk_parse(unsigned char *data, size_t len)
                }
                //nbt_end_list(n);
             } else if (!strcmp(s, "HeightMap")) {
-               height = nbt_get(n, TAG_Int_Array, &len);
+               int len;
+               height = (int *)nbt_get(n, TAG_Int_Array, &len);
                assert(len == 256);
             } else
                nbt_skip(n);

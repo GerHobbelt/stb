@@ -308,7 +308,7 @@ void error(char *s)
    exit(0);
 }
 
-void ods(char *fmt, ...)
+void ods(const char *fmt, ...)
 {
    char buffer[1000];
    va_list va;

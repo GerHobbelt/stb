@@ -4,7 +4,7 @@
 
 #include <stdlib.h>
 
-int test_1454_gif()
+int test_1454_gif(void)
 {
 	const stbi_uc data[] = { 'G', 'I', 'F', '8', '9', 'a', // Magic number
 		1, 0, 1, 0, // Width and height

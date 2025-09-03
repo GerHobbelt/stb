@@ -67,7 +67,7 @@ int main(int argc, char **argv)
       }
       #endif
 
-      out_pixels = malloc(out_w * out_h * 3);
+      out_pixels = (unsigned char*)malloc(out_w * out_h * 3);
 
       if (!stbhw_generate_image(&ts, NULL, out_pixels, out_w*3, out_w, out_h)) {
          fprintf(stderr, "Error: %s\n", stbhw_get_last_error());

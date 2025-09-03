@@ -2,7 +2,9 @@
  * Unit tests for "stb.h"
  */
 
+#ifndef _CRT_SECURE_NO_WARNINGS
 #define _CRT_SECURE_NO_WARNINGS
+#endif
 //#include <windows.h>
 #include <stdio.h>
 #include <string.h>

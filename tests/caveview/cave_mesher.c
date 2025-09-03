@@ -31,7 +31,7 @@
 #define STB_VOXEL_RENDER_IMPLEMENTATION
 #include "stb_voxel_render.h"
 
-extern void ods(char *fmt, ...);
+extern void ods(const char *fmt, ...);
 
 //#define FANCY_LEAVES  // nearly 2x the triangles when enabled (if underground is filled)
 #define FAST_CHUNK

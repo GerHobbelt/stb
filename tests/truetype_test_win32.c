@@ -1,5 +1,7 @@
 // tested in VC6 (1998) and VS 2019
+#ifndef _CRT_SECURE_NO_WARNINGS
 #define _CRT_SECURE_NO_WARNINGS
+#endif
 #define WIN32_MEAN_AND_LEAN
 #include <windows.h>
 
@@ -29,7 +31,7 @@ void init(void)
    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 }
 
-void print(float x, float y, char *text)
+void print(float x, float y, const char *text)
 {
    // assume orthographic projection with units = screen pixels, origin at top left
    glBindTexture(GL_TEXTURE_2D, tex);

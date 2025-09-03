@@ -14,7 +14,7 @@ exit 0
 #include <sys/stat.h>
 #include <vector>
 
-#include "../../stb_vorbis.c"
+#include "../../../stb_vorbis.c"
 
 int main(int argc, char *argv[])
 {

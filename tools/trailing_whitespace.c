@@ -5,9 +5,9 @@ int main(int argc, char **argv)
 {
    int i;
    for (i=1; i < argc; ++i) {
-      int len;
+      size_t len;
       FILE *f;
-      char *s = stb_file(argv[i], &len);
+      char *s = (char *)stb_file(argv[i], &len);
       char *end, *src, *dest;
       if (s == NULL) {
          printf("Couldn't read file '%s'.\n", argv[i]);

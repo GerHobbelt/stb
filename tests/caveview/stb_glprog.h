@@ -48,6 +48,8 @@
 #if !defined(INCLUDE_STB_GLPROG_H)
 #define INCLUDE_STB_GLPROG_H
 
+#include <stb_gl.h>
+
 #ifndef STB_GLPROG_STATIC
 #ifdef __cplusplus
 extern "C" {
@@ -112,7 +114,7 @@ extern void stbgl_delete_shader(GLuint shader);
 
 /////////////    RENDERING WITH SHADERS
 
-extern GLint stbgl_find_uniform(GLuint prog, char *uniform);
+extern GLint stbgl_find_uniform(GLuint prog, const char *uniform);
 
 extern void stbgl_find_uniforms(GLuint prog, GLint *locations, char const **uniforms, int num_uniforms);
 // Given the locations array that is num_uniforms long, fills out
@@ -440,7 +442,7 @@ STB_GLPROG_DECLARE void stgbl_delete_program(GLuint program)
    stbglDeleteProgram(program);
 }
 
-GLint stbgl_find_uniform(GLuint prog, char *uniform)
+GLint stbgl_find_uniform(GLuint prog, const char *uniform)
 {
    return stbglGetUniformLocation(prog, uniform);
 }
