@@ -24,4 +24,5 @@ int main() {
 	test_1558();
 	test_1559();
 	test_1560();
+	return 0;
 }

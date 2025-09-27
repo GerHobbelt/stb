@@ -93,7 +93,7 @@ typedef struct
 
 } mode_info;
 
-mode_info modes[] =
+static const mode_info modes[] =
 {
    {   0,0,0,0,0,    32, },
    {   0,0,0,0,1,   100, },
@@ -115,7 +115,7 @@ mode_info modes[] =
 #define MODECOUNT  (sizeof(modes)/sizeof(modes[0]))
 #define CLUSTERSIZECOUNT   6    // 8,16, 32,64,  128,256
 
-size_t size_for_max_number(uint32 number)
+static size_t size_for_max_number(uint32 number)
 {
    if (number == 0) return 0;
    if (number < 256) return 1;
@@ -124,13 +124,13 @@ size_t size_for_max_number(uint32 number)
    return 4;
 }
 
-size_t size_for_max_number_aligned(uint32 number)
+static size_t size_for_max_number_aligned(uint32 number)
 {
    size_t n = size_for_max_number(number);
    return n == 3 ? 4 : n;
 }
 
-uval get_data(uval *data, int offset, uval *end)
+static uval get_data(uval *data, int offset, uval *end)
 {
    if (data + offset >= end)
       return 0;
@@ -138,17 +138,17 @@ uval get_data(uval *data, int offset, uval *end)
       return data[offset];
 }
 
-int safe_len(uval *data, int len, uval *end)
+static int safe_len(uval *data, int len, uval *end)
 {
    if (len > end - data)
       return end - data;
    return len;
 }
 
-uval tempdata[256];
-int dirty=0;
+static uval tempdata[256];
+static int dirty=0;
 
-size_t find_packed(uval **packed, uval *data, int len, int aligned, int fastpath, uval *end, int offset, int replace)
+static size_t find_packed(uval **packed, uval *data, int len, int aligned, int fastpath, uval *end, int offset, int replace)
 {
    int packlen = stb_arr_len(*packed);
    int i,p;
@@ -187,7 +187,7 @@ size_t find_packed(uval **packed, uval *data, int len, int aligned, int fastpath
    return p;
 }
 
-void output_table(const char *name1, const char *name2, uval *data, int length, int sign, char **names)
+static void output_table(const char *name1, const char *name2, uval *data, int length, int sign, char **names)
 {
    char temp[20];
    uval maxv = 0;
@@ -231,7 +231,7 @@ void output_table(const char *name1, const char *name2, uval *data, int length, 
    printf("};\n");
 }
 
-void output_table_with_trims(const char *name1, const char *name2, uval *data, int length)
+static void output_table_with_trims(const char *name1, const char *name2, uval *data, int length)
 {
    uval maxt=0, maxp=0;
    int i,d,s,e, count;
@@ -319,9 +319,9 @@ void output_table_with_trims(const char *name1, const char *name2, uval *data, i
    }
 }
 
-int weight=1;
+static int weight=1;
 
-table pack_for_mode(table *t, int mode, char *table_name)
+static table pack_for_mode(table *t, int mode, char *table_name)
 {
    size_t extra_size;
    int i;
@@ -542,7 +542,7 @@ table pack_for_mode(table *t, int mode, char *table_name)
    return newtab;
 }
 
-result pack_table(table *t, size_t path, int min_storage)
+static result pack_table(table *t, size_t path, int min_storage)
 {
    int i;
    result best;
@@ -573,7 +573,7 @@ result pack_table(table *t, size_t path, int min_storage)
    return best;
 }
 
-int pack_table_by_modes(table *t, int *modes)
+static int pack_table_by_modes(table *t, int *modes)
 {
    table s = *t;
    while (*modes > -1) {
@@ -587,7 +587,7 @@ int pack_table_by_modes(table *t, int *modes)
    return s.inherited_storage + s.input_size * s.length;
 }
 
-int strip_table(table *t, int exceptions)
+static int strip_table(table *t, int exceptions)
 {
    uval terminal_value;
    int p = t->length-1;
@@ -607,7 +607,7 @@ int strip_table(table *t, int exceptions)
    return p+1; // p is a character we must output
 }
 
-void optimize_table(table *t, const char *table_name)
+static void optimize_table(table *t, const char *table_name)
 {
    int modelist[3] = { 85, -1 };
    int modes[8];
@@ -672,14 +672,14 @@ void optimize_table(table *t, const char *table_name)
       output_table(table_name, "_1", s.input, s.length, 0, NULL);
 }
 
-uval unicode_table[0x110000];
+static uval unicode_table[0x110000];
 
 typedef struct
 {
    uval lo,hi;
 } char_range;
 
-char_range get_range(char *str)
+static char_range get_range(char *str)
 {
    char_range cr;
    char *p;
@@ -692,7 +692,7 @@ char_range get_range(char *str)
    return cr;
 }
 
-char *skip_semi(char *s, int count)
+static char *skip_semi(char *s, int count)
 {
    while (count) {
       s = strchr(s, ';');

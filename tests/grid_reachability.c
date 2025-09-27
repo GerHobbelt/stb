@@ -169,6 +169,7 @@ void end_timer(void)
 extern void quicktest(void);
 
 int loc[5000][2];
+
 int main(int argc, char **argv)
 {
    stbcc_grid *g;

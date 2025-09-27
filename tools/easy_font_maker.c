@@ -5,11 +5,11 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-int w,h;
-uint8 *data;
+static int w,h;
+static uint8 *data;
 
-int last_x[2], last_y[2];
-int num_seg[2], non_empty;
+static int last_x[2], last_y[2];
+static int num_seg[2], non_empty;
 #if 0
 typedef struct
 {
@@ -25,9 +25,9 @@ typedef struct
    unsigned char dir:1;
 } segment;
 
-segment *segments;
+static segment *segments;
 
-void add_seg(int x, int y, int len, int horizontal)
+static void add_seg(int x, int y, int len, int horizontal)
 {
    segment s;
    s.x = x;
@@ -58,10 +58,10 @@ typedef struct
    unsigned char len:3;
 } segment;
 
-segment *segments;
-segment *vsegments;
+static segment *segments;
+static segment *vsegments;
 
-void add_seg(int x, int y, int len, int horizontal)
+static void add_seg(int x, int y, int len, int horizontal)
 {
    segment s;
 
@@ -90,7 +90,7 @@ void add_seg(int x, int y, int len, int horizontal)
    last_x[horizontal] = x;
 }
 
-void print_segments(segment *s)
+static void print_segments(segment *s)
 {
    int i, hpos;
    printf("   ");
@@ -109,9 +109,9 @@ void print_segments(segment *s)
 
 #endif
 
-chardata charinfo[128];
+static chardata charinfo[128];
 
-int parse_char(int x, chardata *c, int offset)
+static int parse_char(int x, chardata *c, int offset)
 {
    int start_x = x, end_x, top_y = 0, y;
 
