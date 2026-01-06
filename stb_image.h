@@ -391,6 +391,7 @@ RECENT REVISION HISTORY:
 #  define STBI_FALLTHROUGH
 #endif
 
+
 enum
 {
    STBI_default = 0, // only used for desired_channels
@@ -1298,7 +1299,7 @@ static stbi_uc *stbi__convert_16_to_8(stbi__uint16 *orig, int w, int h, int chan
 	   PRAGMA_CLANG_LOOP_VECTORIZE_ASSUME_SAFETY();
 
        for (i = 0; i < img_len; ++i) {
-           float v = pow(float(orig[i]) * (1.0f / 65536), 1 / 2.2f);
+           float v = pow((float)(orig[i]) * (1.0f / 65536), 1 / 2.2f);
            reduced[i] = (stbi_uc)(v * 255);
        }
    }
