@@ -1880,7 +1880,7 @@ STB_EXTERN char * stb_skipwhite(char *s);
 STB_EXTERN char * stb_trimwhite(char *s);
 STB_EXTERN char * stb_skipnewline(char *s);
 STB_EXTERN char * stb_strncpy(char *s, const char *t, int n);
-STB_EXTERN char * stb_substr(char *t, int n);
+STB_EXTERN char * stb_substr(const char *t, int n);
 STB_EXTERN char * stb_duplower(const char *s);
 STB_EXTERN void   stb_tolower (char *s);
 STB_EXTERN char * stb_strchr2 (char *s, char p1, char p2);
@@ -8461,7 +8461,7 @@ void stb_srand(unsigned int seed)
 #define STB__TWIST(b,i,j)    ((b)[i] & STB__UPPER_MASK) | ((b)[j] & STB__LOWER_MASK)
 #define STB__MAGIC(s)        (((s)&1)*STB__MATRIX_A)
 
-unsigned int stb_rand()
+unsigned int stb_rand(void)
 {
    unsigned int  * b = stb__mt_buffer;
    int idx = stb__mt_index;

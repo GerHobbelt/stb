@@ -664,14 +664,14 @@ char *stb_trimwhite(char *s)
    return s;
 }
 
-char *stb_strncpy(char *s, char *t, int n)
+char *stb_strncpy(char *s, const char *t, int n)
 {
    strncpy(s,t,n);
    s[n-1] = 0;
    return s;
 }
 
-char *stb_substr(char *t, int n)
+char *stb_substr(const char *t, int n)
 {
    char *a;
    int z = (int) strlen(t);
@@ -682,9 +682,10 @@ char *stb_substr(char *t, int n)
    return a;
 }
 
-char *stb_duplower(char *s)
+char *stb_duplower(const char *s)
 {
-   char *p = strdup(s), *q = p;
+	char *p = strdup(s);
+	char *q = p;
    while (*q) {
       *q = tolower(*q);
       ++q;
@@ -3019,7 +3020,7 @@ void stb_srand(unsigned long seed)
 #define STB__TWIST(b,i,j)    ((b)[i] & STB__UPPER_MASK) | ((b)[j] & STB__LOWER_MASK)
 #define STB__MAGIC(s)        (((s)&1)*STB__MATRIX_A)
 
-unsigned long stb_rand()
+unsigned long stb_rand(void)
 {
    unsigned long * b = stb__mt_buffer;
    int idx = stb__mt_index;

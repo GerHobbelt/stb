@@ -30,7 +30,7 @@ static unsigned int fnv1a_hash32(const stbi_uc *bytes, size_t len)
 // and then you can run this test after making PNG loader changes. If the
 // ref results change (as per git diff), confirm that the change was
 // intentional. If so, commit them as well; if not, undo.
-int main()
+int main(void)
 {
    char **files;
    FILE *csv_file;
