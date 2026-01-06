@@ -556,7 +556,7 @@ static LRESULT WINAPI WindowProc( HWND   window,
       for( i = 0 ; i < fi[0].numtypes ; i++ )
         if( windowranges[i] > max ) max = windowranges[i];
    
-      if ( ( max == 0 ) || ( MessageBox( window, "Cancel before training is finished?", "Vertical First Training", MB_OKCANCEL|MB_ICONSTOP ) == IDOK ) )
+      if ( ( max == 0 ) || ( MessageBoxA( window, "Cancel before training is finished?", "Vertical First Training", MB_OKCANCEL|MB_ICONSTOP ) == IDOK ) )
       {
         for( i = 0 ; i < fi[0].numtypes ; i++ )
           if( windowranges[i] > max ) max = windowranges[i];
@@ -599,7 +599,7 @@ static LRESULT WINAPI WindowProc( HWND   window,
 
         rc.left = 32; rc.top = bitmaph*curzoom+10;
         rc.right = 512; rc.bottom = rc.top + 512;
-        DrawText( dc, buf, -1, &rc, DT_TOP );
+        DrawTextA( dc, buf, -1, &rc, DT_TOP );
 
         l = 0;
         if ( max == 0 )
@@ -707,7 +707,7 @@ static LRESULT WINAPI WindowProc( HWND   window,
 
         rc.left = 32+320; rc.right = 512+320; 
         SetTextColor( dc, RGB(0,0,128) );
-        DrawText( dc, buf, -1, &rc, DT_TOP );
+        DrawTextA( dc, buf, -1, &rc, DT_TOP );
 
       }
       EndPaint( window, &ps );
